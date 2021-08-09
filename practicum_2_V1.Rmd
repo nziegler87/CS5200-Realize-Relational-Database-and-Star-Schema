@@ -6,6 +6,7 @@ output:
 ---
 
 # Load Packages
+
 ```{r}
 library(DBI)
 library(RMySQL)
@@ -16,38 +17,173 @@ options(sqldf.driver = "SQLite")   ## Setting needed to use sqldf with non sqlit
 
 library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
-
 ```
 
-## Connection Info for AWS
-### Danielle to update
+## Connection Info for AWS - DONE
+
 ```{r}
-db_user <- "admin"
-db_password <- "Boston1234"
-db_name <-"practicum1db"
-db_host <- "practicum1.c9h321ihmn93.us-east-2.rds.amazonaws.com"
+db_user <- "dbadmin"
+db_password <- "dos8JINT.kras8jaun"
+db_host <- "cs5200-dbs.ctuc7sl6qeau.us-east-2.rds.amazonaws.com"
 db_port <- 3306
 
-mydb <- dbConnect(MySQL(), dbname = db_name, host = db_host, port = db_port,
-                  user = db_user, password = db_password)
+dbcon <- dbConnect(MySQL(), host = db_host, port = db_port, user = db_user, password = db_password)
 ```
-
 
 # ERD
 
+
+
 # Create Tables
+
+## AUTHOR
+
 ```{sql connection=dbcon}
-DROP TABLE IF EXISTS TableName;
+DROP TABLE IF EXISTS Author;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE TableName(
-
+CREATE TABLE `Author` (
+  `aut_id` int,
+  `author_last_name` varchar(200),
+  `author_fore_name` varchar(200),
+  `author_initials` varchar(5),
+  `author_affilitation` blob,
+  PRIMARY KEY (`aut_id`)
 );
 ```
 
 ```{sql connection=dbcon}
-SELECT * FROM TableName;
+SELECT * FROM Author;
+```
+
+## ABSTRACT
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Abstract;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `Abstract` (
+  `abstract_id` int,
+  `article_id` int,
+  `nlm_category` {background, unassigned, methods, results, conclusions},
+  `abstract_label` {background, purpose_and_questions, patients_and_methods, results, conclusions},
+  `abstract_text` blob,
+  PRIMARY KEY (`abstract_id`)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Abstract;
+```
+
+## ARTICLE AUTHOR JUNCTION
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Article_Author_Junction;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `Article_Author_Junction` (
+  `art_aut_id` int,
+  `author_id` int,
+  `article_id` int,
+  PRIMARY KEY (`art_aut_id`)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Article_Author_Junction;
+```
+
+## ARTICLE
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Article;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `Article` (
+  `art_id` int,
+  `article_title` varchar(200),
+  `journal_issue_id` int,
+  `pub_model` {enum],
+  `date_created` datetime,
+  `date_completed` datetime,
+  `date_revised` datetime,
+  `date_published` datetime,
+  PRIMARY KEY (`art_id`)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Article;
+```
+
+## HISTORY
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS History;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `History` (
+  `article_id` int,
+  `pub_status` {received, accepted, epublish, entrez, pubmed, medline, revised, aheadofprint},
+  `year` datetime,
+  `month` int,
+  `day` int,
+  `hour` int,
+  `minute` int
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM History;
+```
+
+
+## JOURNAL_ISSUE
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Journal_Issue;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `Journal_Issue` (
+  `issue_id` int,
+  `journal_id` int,
+  `cited_medium` {Internet, Print},
+  `volume` int,
+  `issue` int,
+  `publication_year` int,
+  `publication_month` int,
+  PRIMARY KEY (`issue_id`)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Journal_Issue;
+```
+
+## JOURNAL
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Journal;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE `Journal` (
+  `j_id` int,
+  `journal_name` varchar(200),
+  `iso_abbreviation` varchar(15),
+  PRIMARY KEY (`j_id`)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Journal;
 ```
 
 # Load Data
@@ -80,6 +216,7 @@ getPK <- function (aRow, aDF){
 ```
 
 ## Parse XML Document
+
 ```{r}
 fn <- "pubmed_sample.xml"
 
@@ -108,8 +245,8 @@ article <- r[[14]]
   xmlName(publicationData[[1]][[1]]) == 'Year'
 ```
 
-
 # Test at extracting article and journal information V3
+
 ```{r}
 test.df <- data.frame(journalVolume = character(),
                       journalIssue = character(),
@@ -197,6 +334,7 @@ test.df
 ```
 
 ## Pre-Load the Dataframe for Authors
+
 ```{r}
 ## Create temporary dataframe to hold all authors, before duplicates removed
 authors.df.temp  <- data.frame(author_last_name = character(),
@@ -246,6 +384,7 @@ sqldf("SELECT aid, author_last_name, author_fore_name, author_initials
 ```
 
 ## Dataframe for Journal
+
 ```{r}
 journal.df <- data.frame(j_id = integer(),
                          journal_title= character(),
@@ -267,6 +406,17 @@ for ( i in seq(1, (length(journals)), 2) ){
 
 journal.df
 ```
+
+# Create Star/Snowflake Schema
+
+## (20 pts) Create and populate a star schema with dimension and transaction fact tables. Each row in the fact table will represent one article. Include the image of an updated ERD that contains the fact table and any additional required dimension tables. Populate the star schema in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
+
+## (20 pts) In the same schema as the previous step, create and populate a summary fact table that represents number of articles per time period (quarter, year) by author and by journal. Include the image of an updated ERD that contains the fact table. Populate the fact table in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
+
+# Explore and Mine Data
+
+## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
+
 
 
 ```{r}
