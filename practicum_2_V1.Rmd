@@ -1,0 +1,274 @@
+---
+title: "Store XML in a Database"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Load Packages
+```{r}
+library(DBI)
+library(RMySQL)
+library(XML)
+
+library(sqldf)
+options(sqldf.driver = "SQLite")   ## Setting needed to use sqldf with non sqlite database
+
+library(dplyr)    ## For removing duplicate values in dataframe
+library(stringr)  ## For capitalization
+
+```
+
+## Connection Info for AWS
+### Danielle to update
+```{r}
+db_user <- "admin"
+db_password <- "Boston1234"
+db_name <-"practicum1db"
+db_host <- "practicum1.c9h321ihmn93.us-east-2.rds.amazonaws.com"
+db_port <- 3306
+
+mydb <- dbConnect(MySQL(), dbname = db_name, host = db_host, port = db_port,
+                  user = db_user, password = db_password)
+```
+
+
+# ERD
+
+# Create Tables
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS TableName;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE TableName(
+
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM TableName;
+```
+
+# Load Data
+
+## A potential helper function..this was a modified one I used from Martin...should just use his that doesn't
+## Return an error
+
+```{r}
+getPK <- function (aRow, aDF){
+
+  n <- nrow(aDF)
+
+  if (n == 0){
+    # data frame is empty, so can't exist
+    stop("Provided Data Frame is Empty")
+  }
+  
+  for (a in 1:n){
+    # check if input matches a row in the df
+    if ( aDF[a,2] == aRow ){
+      
+      # found a match; return it's ID
+      return(a)
+    }
+  }
+  
+  # none matched
+  stop("Provided value does not exist in data frame.")
+}
+```
+
+## Parse XML Document
+```{r}
+fn <- "pubmed_sample.xml"
+
+# Reading the XML file and parse into DOM
+xmlDOM <- xmlParse(file = fn)
+
+# get the root node of the DOM tree
+r <- xmlRoot(xmlDOM)
+
+# get the number of articles in the XML file
+numArticles <- xmlSize(r)
+numArticles
+```
+
+```{r}
+# This gets you the article information
+r[[12]]
+```
+
+```{r}
+article <- r[[14]]
+  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
+  publicationData <- xpathSApply(article, publicationDataQuery)
+  publicationData
+  xmlSize(publicationData[[1]])
+  xmlName(publicationData[[1]][[1]]) == 'Year'
+```
+
+
+# Test at extracting article and journal information V3
+```{r}
+test.df <- data.frame(journalVolume = character(),
+                      journalIssue = character(),
+                      journalIssueYear = character(),
+                      journalIssueMonth = character(),
+                      journalTitle = character(),
+                      journalAbbreviation = character(),
+                      articleTitle = character(),
+                      stringsAsFactors = F)
+
+for ( i in 1:numArticles ){
+  article <- r[[i]]
+
+  # Journal Information
+  
+  # Volume
+  journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
+  journalVolume <- xpathSApply(article, journalVolumeQuery, xmlValue)
+  
+  # Issue
+  journalIssueQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Issue"
+  journalIssue <- xpathSApply(article, journalIssueQuery, xmlValue)
+
+  # Extracting Publication Year
+  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
+  publicationData <- xpathSApply(article, publicationDataQuery)
+  
+  # If date is stored as MedlineDate, parse differently that if it is saved as separate month / date
+  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ){
+    
+    ## if it is saved as MedlineDate, use substring to extract year and month
+    ## TODO: Need to change month to int
+    journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
+    journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
+    
+    journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
+    journalIssueMonth <- xpathSApply(article, journalIssueMonthQuery, xmlValue)
+  } 
+  
+  ## If it is not saved as Medline, parse out Year and Month
+  ## TODO: Same as above, month should be converted from string to number
+  else{
+    journalIssueYear <- NA
+    journalIssueMonth <- NA
+    
+    # Because not every article has a pub month, using a for loop with xmlName to extract the data
+    
+    for ( j in 1:xmlSize(publicationData[[1]]) ){
+      ## If year is found, save year so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
+        journalIssueYear <- xmlValue(publicationData[[1]][[j]])
+      }
+      
+      ## If month is found, save so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
+        journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
+      }
+    }
+  }
+  
+  # Journal Title
+  journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
+  journalTitle <- xpathSApply(article, journalTitleQuery, xmlValue)
+  journalTitle
+  
+  # Journal Abbreviation
+  journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
+  journalAbbreviation <- xpathSApply(article, journalAbbreviationQuery, xmlValue)
+  journalAbbreviation
+  
+  # Article Title
+  articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
+  articleTitle <- xpathSApply(article, articleTitleQuery, xmlValue)
+  articleTitle
+  
+  test.df[i,] <- c(journalVolume,
+                   journalIssue,
+                   journalIssueYear,
+                   journalIssueMonth,
+                   journalTitle,
+                   journalAbbreviation,
+                   articleTitle)
+}
+test.df
+```
+
+## Pre-Load the Dataframe for Authors
+```{r}
+## Create temporary dataframe to hold all authors, before duplicates removed
+authors.df.temp  <- data.frame(author_last_name = character(),
+                               author_fore_name = character(),
+                               author_initials = character(),
+                               # author_affiliation = character(),
+                               stringsAsFactors = F)
+
+## Create a final dataframe to hold authors, after uplicates are removed
+authors.df <- data.frame(aid = integer(),
+                         author_last_name = character(),
+                         author_fore_name = character(),
+                         author_initials = character(),
+                         # author_affiliation = character(),
+                         stringsAsFactors = F)
+
+## Use xpath to extract list of all authors
+xpathEx <- "//Author"
+authors <- xpathSApply(xmlDOM, xpathEx)
+
+## Iterate through nodes and add all found authors to temp dataframe
+## Note conversion to all lower case, which helps in removing duplicates later
+for ( i in 1:length(authors)){
+  an.author <- authors[[i]]
+  last_name <- tolower(xmlValue(an.author[[1]]))
+  fore_name <- tolower(xmlValue(an.author[[2]]))
+  initials <- toupper(xmlValue(an.author[[3]]))
+  new.author <- c(last_name, fore_name, initials)
+  authors.df.temp[i,] <- new.author
+}
+
+## Use dplyr to remove duplicates
+unique.authors <- distinct(authors.df.temp)
+
+## Add finalized author list to dataframe
+## Note conversion back to title case
+for ( i in 1:nrow(unique.authors)) {
+  authors.df[i,] <- c(i, str_to_title(unique.authors[i,1]), 
+                      str_to_title(unique.authors[i,2]), unique.authors[i,3])
+}
+
+## Ya Lin Chiu and Ya-Lin Chiu as YL
+## Paul Christos as P and Paul J Christos as PJ
+sqldf("SELECT aid, author_last_name, author_fore_name, author_initials 
+       FROM 'authors.df'
+       ORDER BY author_last_name")
+```
+
+## Dataframe for Journal
+```{r}
+journal.df <- data.frame(j_id = integer(),
+                         journal_title= character(),
+                         iso_abbreviation = character(),
+                         stringsAsFactors = F)
+
+## Use xpath to extract list of all journals
+xpathEx <- "//Journal/Title | //Journal/ISOAbbreviation"
+journals <- xpathSApply(xmlDOM, xpathEx, xmlValue)
+
+journalNum <- 1
+for ( i in seq(1, (length(journals)), 2) ){
+  journal_title <- journals[[i]]
+  journal_abv <- journals[[i + 1]]
+  new.journal <- c(journalNum, journal_title, journal_abv)
+  journal.df[journalNum,] <- new.journal
+  journalNum <- journalNum + 1
+}
+
+journal.df
+```
+
+
+```{r}
+dbDisconnect(dbcon)
+```
