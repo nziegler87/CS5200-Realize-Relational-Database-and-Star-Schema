@@ -359,22 +359,29 @@ for ( i in 1:numArticles ){
   
   # Check to see if journal already exists in table
   # TODO: the [,2:ncol...] ignores the first column....because it has a PK not yet in the temp journal
-  j_id <- rowExists(a.journal, journal.df[,2:ncol(journal.df)])
+  journalID <- rowExists(a.journal, journal.df[,2:ncol(journal.df)])
   
   # If journal doesn't exist, add it to the data frame
-  if ( j_id == 0 ){
+  if ( journalID == 0 ){
     
     # Set j_id to be the next unused row num in journal.df
-    j_id <- nrow(journal.df) + 1
+    journalID <- nrow(journal.df) + 1
     
     # TODO: TBH, I don't understand why the first line isn't sufficient
-    journal.df[j_id,2:ncol(journal.df)] <- a.journal
-    journal.df[j_id, 1] <- j_id
+    journal.df[journalID,2:ncol(journal.df)] <- a.journal
+    journal.df[journalID, 1] <- journalID
   }
   
   # ------------- #
   # Journal Issue #
   # ------------- #
+  
+  # issue id
+  journalIssueIDQuery <- "./MedlineCitation/Article/Journal/@IssnType"
+  journalIssueID <- xpathSApply(article, journalVolumeQuery, xmlValue)
+  # issn_type
+  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN"
+  journalIssnType <- xpathSApply(article, journalVolumeQuery, xmlValue)
   
   # Volume
   journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
@@ -427,8 +434,9 @@ for ( i in 1:numArticles ){
   }
   
   # Check to see if journal issue is already saved
-  a.journal_issue <- data.frame(j_id, )
-  
+  an.issue <- data.frame(journalIssueID, journalID, journalIssnType,
+                         journalVolume, journalIssue,
+                         journalIssueYear, journalIssueMonth)
 }
 ```
 
