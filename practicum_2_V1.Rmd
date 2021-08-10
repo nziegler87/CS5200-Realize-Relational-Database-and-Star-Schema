@@ -5,6 +5,14 @@ output:
     df_print: paged
 ---
 
+```{r}
+# TODO: keep this handy: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/att-IssnType.html
+# TODO: add in NOT NULL and Foreign Key Constraints
+# TODO: look at order of table creation
+# TODO: add in disable FK constraints at beginning and then add in
+# TODO: do we need to do indexes?
+```
+
 # Load Packages
 
 ```{r}
@@ -23,16 +31,16 @@ library(stringr)  ## For capitalization
 
 ```{r}
 db_user <- "dbadmin"
+db_name <- 'SandboxDB'
 db_password <- "dos8JINT.kras8jaun"
 db_host <- "cs5200-dbs.ctuc7sl6qeau.us-east-2.rds.amazonaws.com"
 db_port <- 3306
 
-dbcon <- dbConnect(MySQL(), host = db_host, port = db_port, user = db_user, password = db_password)
+dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host, 
+                   port = db_port, user = db_user, password = db_password)
 ```
 
 # ERD
-
-
 
 # Create Tables
 
@@ -108,11 +116,11 @@ CREATE TABLE `Article` (
   `art_id` int,
   `article_title` varchar(200),
   `journal_issue_id` int,
-  `pub_model` {enum],
-  `date_created` datetime,
-  `date_completed` datetime,
-  `date_revised` datetime,
-  `date_published` datetime,
+  `pub_model` {Print, Print-Electronic, Electronic, Electronic-Print, Electronic-eCollection},
+  `date_created` DATE,
+  `date_completed` DATE,
+  `date_revised` DATE,
+  `date_published` DATE,
   PRIMARY KEY (`art_id`)
 );
 ```
@@ -128,21 +136,22 @@ DROP TABLE IF EXISTS History;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `History` (
+CREATE TABLE `Article_History` (
+  `hist_id` int,
   `article_id` int,
   `pub_status` {received, accepted, epublish, entrez, pubmed, medline, revised, aheadofprint},
   `year` datetime,
   `month` int,
   `day` int,
   `hour` int,
-  `minute` int
+  `minute` int,
+  PRIMARY KEY (`hist_id`)
 );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM History;
 ```
-
 
 ## JOURNAL_ISSUE
 
@@ -154,7 +163,7 @@ DROP TABLE IF EXISTS Journal_Issue;
 CREATE TABLE `Journal_Issue` (
   `issue_id` int,
   `journal_id` int,
-  `cited_medium` {Internet, Print},
+  `issn_type` {Electronic, Print},
   `volume` int,
   `issue` int,
   `publication_year` int,
@@ -188,31 +197,85 @@ SELECT * FROM Journal;
 
 # Load Data
 
-## A potential helper function..this was a modified one I used from Martin...should just use his that doesn't
-## Return an error
+## Helper Functions
+
+### Row Exists
+
+A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
 
 ```{r}
-getPK <- function (aRow, aDF){
-
-  n <- nrow(aDF)
-
-  if (n == 0){
+rowExists <- function (aRow, aDF){
+  # check if that address is already in the data frame
+  num_rows <- nrow(aDF)
+  num_cols <- ncol(aDF)
+  
+  if ( num_rows == 0 ){
     # data frame is empty, so can't exist
-    stop("Provided Data Frame is Empty")
+    return(0)
   }
   
-  for (a in 1:n){
-    # check if input matches a row in the df
-    if ( aDF[a,2] == aRow ){
-      
+  for ( i in 1:num_rows ){
+    # check if all columns match for a row; ignore the value of the first column
+    if ( all(aDF[i,] == aRow[1,]) ){
       # found a match; return it's ID
-      return(a)
+      return(i)
     }
   }
   
   # none matched
-  stop("Provided value does not exist in data frame.")
+  return(0)
 }
+```
+
+## Create Data Frames
+
+```{r}
+author.df <- data.frame(aut_id <- as.numeric(),
+                        author_last_name <- as.character(),
+                        author_fore_name <- as.character(),
+                        author_initlas <- as.character(),
+                        author_affiliation <- as.character())
+
+abstract.df <- data.frame(abstract_id <- as.numeric(),
+                          article_id <- as.numeric(),
+                          nlm_category <- as.character(),
+                          abstract_label <- as.character(),
+                          abstract_text <- as.character())
+
+article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
+                                         author_id <- as.numeric(),
+                                         article_id <- as.numeric())
+
+# Had to put in NA for this to get it to load
+article.df <- data.frame(art_id <- as.numeric(NA),
+                         article_title <- as.character(NA),
+                         journal_issue_id <- as.numeric(NA),
+                         pub_model <- as.character(NA),
+                         date_created <- as.Date(NA),
+                         date_completed <- as.Date(NA),
+                         date_revised <- as.Date(NA),
+                         date_published <- as.Date(NA))
+
+history.df <- data.frame(hist_id <- as.numeric(),
+                         article_id <- as.numeric(),
+                         pub_status <- as.character(),
+                         year <- as.numeric(),
+                         month <- as.numeric(),
+                         day <- as.numeric(),
+                         hour <- as.numeric(),
+                         minute <- as.numeric())
+
+journal_issue.df <- data.frame(issue_id <- as.numeric(),
+                               journal_id <- as.numeric(),
+                               issn_type <- as.character(),
+                               volume <- as.numeric(),
+                               issue <- as.numeric(),
+                               publication_year <- as.numeric(),
+                               publication_month <- as.numeric())
+
+journal_issue.df <- data.frame(j_id <- as.numeric(),
+                               journal_name <- as.character(),
+                               iso_abbreviation <- as.character())
 ```
 
 ## Parse XML Document
@@ -230,6 +293,8 @@ r <- xmlRoot(xmlDOM)
 numArticles <- xmlSize(r)
 numArticles
 ```
+
+
 
 ```{r}
 # This gets you the article information
@@ -416,8 +481,6 @@ journal.df
 # Explore and Mine Data
 
 ## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
-
-
 
 ```{r}
 dbDisconnect(dbcon)
