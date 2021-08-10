@@ -13,6 +13,7 @@ output:
 # TODO: do we need to do indexes?
 # TODO: do we want to use str_to_title() to standardize journal titles?
 # TODO: do we really need sqldf?
+# TODO: bringing in affiliation is causing many duplicates...do we clean or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html
 ```
 
 # Load Packages
@@ -474,25 +475,28 @@ for ( i in 1:numArticles ){
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
 
-    affiliation <- NA
+    affiliation <- "UNKNOWN"
     if ( xmlSize(author) == 4 ){
       affiliation <- tolower(xmlValue(author[[4]]))
     }
+    
+   print(paste("last_name:", last_name, "| fore_name:", fore_name, "| initials:", initials, "| affiliation:", affiliation))
 
-  an.author <- data.frame(last_name, fore_name, initials, affiliation,
+
+    an.author <- data.frame(last_name, fore_name, initials, affiliation,
                           stringsAsFactors = FALSE)
 
-  author_id <- rowExists(an.author, author.df)
+    author_id <- rowExists(an.author, author.df)
 
-  # If journal doesn't exist, add it to the data frame
-  if ( author_id == 0 ){
+    # If author doesn't exist, add it to the data frame
+    if ( author_id == 0 ){
 
-    # Set author_id to be the next unused row num in author.df
-    author_id <- nrow(author.df) + 1
+      # Set author_id to be the next unused row num in author.df
+      author_id <- nrow(author.df) + 1
 
-    # TODO: TBH, I don't understand why the first line isn't sufficient
-    author.df[author_id,2:ncol(author.df)] <- an.author
-    author.df[author_id, 1] <- author_id
+      # TODO: TBH, I don't understand why the first line isn't sufficient
+      author.df[author_id,2:ncol(author.df)] <- an.author
+      author.df[author_id, 1] <- author_id
     }
   }
 } 
