@@ -6,17 +6,24 @@ output:
 ---
 
 ```{r}
-# TODO: Update heading information
+# Most Important TODO
 # TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
+
 # TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key Constraints
-# TODO: look at order of table creation
+
+# TODO: look at order of table creation **
+
+# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier **
+
+# TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info. Also, turns out that DateCreated, DateCompleted, and DateRevised are all connected to the citation (not the article), so I vote we take that out of the article table. **
+
+# Less Important TODO
+# TODO: Update heading information
 # TODO: add in disable FK constraints at beginning and then add in
 # TODO: do we need to do indexes?
 # TODO: do we want to use str_to_title() to standardize journal titles?
 # TODO: we may not use sqldf / could be removed
 # TODO: the parsing chunk for each article is very long...should probably make some functions
-# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier
-# TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? Also, turns out that DateCreated, DateCompleted, and DateRevised are all connected to the citation (not the article), so I vote we take that out of the article table.
 ```
 
 # Load Packages
@@ -207,7 +214,6 @@ SELECT * FROM Journal;
 ## Helper Functions
 
 ### Row Exists
-
 A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
 ```{r}
 rowExists <- function (aRow, aDF){
@@ -235,6 +241,8 @@ rowExists <- function (aRow, aDF){
 }
 ```
 
+### Return PK Function
+A function that return ths PK of a tuple from a data frame. This should only be used when the value to be found is in the dataframe, otherwise it will throw an error.
 ```{r}
 returnPK <- function (aRow, aDF){
   # check if that address is already in the data frame
@@ -261,6 +269,8 @@ returnPK <- function (aRow, aDF){
 }
 ```
 
+### monthYear
+A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered text is not valid.
 ```{r}
 monthYear <- function(month_text){
   standardized_month_text <- toupper(month_text)
@@ -283,7 +293,6 @@ monthYear <- function(month_text){
 
 
 ## Create Data Frames
-
 ```{r}
 author.df <- data.frame(aut_id <- as.numeric(),
                         author_last_name <- as.character(),
@@ -304,7 +313,7 @@ article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
                                          article_id <- as.numeric(),
                                          stringsAsFactors = FALSE)
 
-# Had to put in NA for this to get it to load
+# Had to put in NA for this to get it to load...hopefully it works!
 article.df <- data.frame(art_id <- as.numeric(NA),
                          article_title <- as.character(NA),
                          journal_issue_id <- as.numeric(NA),
@@ -325,7 +334,6 @@ history.df <- data.frame(hist_id <- as.numeric(),
                          minute <- as.numeric(),
                          stringsAsFactors = FALSE)
 
-# TODO: Should we clean the ISSN to remove the '-' so issue_id can be as.numeric?
 journal_issue.df <- data.frame(issue_id <- as.character(),
                                journal_id <- as.numeric(),
                                volume <- as.numeric(),
@@ -343,7 +351,6 @@ journal.df <- data.frame(j_id <- as.numeric(),
 ```
 
 ## Parse XML Document
-
 ```{r}
 fn <- "pubmed_sample.xml"
 
@@ -355,20 +362,6 @@ r <- xmlRoot(xmlDOM)
 
 # get the number of articles in the XML file
 numArticles <- xmlSize(r)
-```
-
-
-
-```{r}
-# This gets you the article information
-r[[12]]
-```
-
-```{r}
-article <- r[[1]]
-  x <- "./MedlineCitation/Article/ArticleDate"
-  x <- xpathSApply(article, x)
-  x
 ```
 
 ## Parse Article Information
@@ -399,18 +392,17 @@ for ( i in 1:numArticles ){
   journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
 
   # Create temporary data frame to store new journal information
-  # TODO: Keep str_to_title()?
   a.journal <- data.frame(str_to_title(journalTitle), journalISSN,
                           journalIssnType, journalAbbreviation, 
                           stringsAsFactors = FALSE)
   
-  # Check to see if journal already exists in table
+  # Check to see if journal already exists in journal.df
   journalID <- rowExists(a.journal, journal.df)
   
   # If journal doesn't exist, add it to the data frame
   if ( journalID == 0 ){
     
-    # Set j_id to be the next unused row num in journal.df
+    # Set journalID to be the next unused row num in journal.df
     journalID <- nrow(journal.df) + 1
     
     # TODO: TBH, I don't understand why the first line isn't sufficient
@@ -449,7 +441,6 @@ for ( i in 1:numArticles ){
   } 
   
   ## If it is not saved as Medline, parse out Year and Month
-  ## TODO: Same as above, month should be converted from string to number
   else{
     journalIssueYear <- NA
     journalIssueMonth <- NA
@@ -477,13 +468,12 @@ for ( i in 1:numArticles ){
                          journalIssueYear, journalIssueMonth,
                          stringsAsFactors = FALSE)
 
-  # Check to see if journal already exists in table
   issue_id <- rowExists(an.issue, journal_issue.df)
   
-  # If journal doesn't exist, add it to the data frame
+  # If journal issue doesn't exist, add it to the data frame
   if ( issue_id == 0 ){
     
-    # Set j_id to be the next unused row num in journal.df
+    # Set issue_id to be the next unused row num in journal_issue.df
     issue_id <- nrow(journal_issue.df) + 1
     
     # TODO: TBH, I don't understand why the first line isn't sufficient
@@ -502,7 +492,7 @@ for ( i in 1:numArticles ){
   pubModelQuery <- "./MedlineCitation/Article/@PubModel"
   pubModel <- xpathSApply(article, pubModelQuery)
   
-
+  # TODO: Continue here
 
   # ------- #
   # Authors #
@@ -510,14 +500,18 @@ for ( i in 1:numArticles ){
   authorsQuery <- "./MedlineCitation/Article/AuthorList/Author"
   authorsResultSet <- xpathSApply(article, authorsQuery)
 
+  # Loop through the AuthorsSet, extracting info and adding to authors table
   for ( i in 1:xmlSize(authorsResultSet) ){
     author <- authorsResultSet[[i]]
     last_name <- str_to_title(xmlValue(author[[1]]))
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
 
-    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN
+    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN. Okay?
     affiliation <- "UNKNOWN"
+    
+    # Because not every author has an affiliation, the check for a fourth
+    # element is done before extracting the info
     if ( xmlSize(author) == 4 ){
       affiliation <- tolower(xmlValue(author[[4]]))
     }
@@ -537,17 +531,40 @@ for ( i in 1:numArticles ){
       author.df[author_id,2:ncol(author.df)] <- an.author
       author.df[author_id, 1] <- author_id
     }
+    
+    # TODO: Once the article.df is populated, add in a step here to populate the article_author junction table
   }
-
-
-  
-  
-  
-  
 } 
 
 ```
 
+# Create Star/Snowflake Schema
+
+## (20 pts) Create and populate a star schema with dimension and transaction fact tables. Each row in the fact table will represent one article. Include the image of an updated ERD that contains the fact table and any additional required dimension tables. Populate the star schema in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
+
+## (20 pts) In the same schema as the previous step, create and populate a summary fact table that represents number of articles per time period (quarter, year) by author and by journal. Include the image of an updated ERD that contains the fact table. Populate the fact table in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
+
+# Explore and Mine Data
+
+## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
+
+```{r}
+dbDisconnect(dbcon)
+```
+
+# Everything below this line is simply for testing / experimentation
+
+```{r}
+# This gets you the article information
+r[[12]]
+```
+
+```{r}
+article <- r[[1]]
+  x <- "./MedlineCitation/Article/ArticleDate"
+  x <- xpathSApply(article, x)
+  x
+```
 
 # Test at extracting article and journal information V3
 
@@ -711,24 +728,9 @@ for ( i in seq(1, (length(journals)), 2) ){
 journal.df
 ```
 
-# Create Star/Snowflake Schema
-
-## (20 pts) Create and populate a star schema with dimension and transaction fact tables. Each row in the fact table will represent one article. Include the image of an updated ERD that contains the fact table and any additional required dimension tables. Populate the star schema in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
-
-## (20 pts) In the same schema as the previous step, create and populate a summary fact table that represents number of articles per time period (quarter, year) by author and by journal. Include the image of an updated ERD that contains the fact table. Populate the fact table in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
-
-# Explore and Mine Data
-
-## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
-
 # Text XPath queries
 ```{r}
   query <- "//ArticleDate"
   x <- xpathSApply(article, query)
   unique(x)
-```
-
-
-```{r}
-dbDisconnect(dbcon)
 ```
