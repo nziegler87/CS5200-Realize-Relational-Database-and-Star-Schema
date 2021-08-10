@@ -12,6 +12,7 @@ output:
 # TODO: add in disable FK constraints at beginning and then add in
 # TODO: do we need to do indexes?
 # TODO: do we want to use str_to_title() to standardize journal titles?
+# TODO: do we really need sqldf?
 ```
 
 # Load Packages
@@ -203,7 +204,6 @@ SELECT * FROM Journal;
 ### Row Exists
 
 A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
-
 ```{r}
 rowExists <- function (aRow, aDF){
   # check if that address is already in the data frame
@@ -218,10 +218,10 @@ rowExists <- function (aRow, aDF){
   for ( i in 1:num_rows ){
     
     # check if all columns match for a row
-    if ( all(aDF[i,] == aRow[1,]) ){
+    if ( all(aDF[i,2:ncol(aDF)] == aRow[1,]) ){
       
       # found a match; return it's ID
-      return(i)
+      return(aDF[i,1])
     }
   }
   
@@ -289,7 +289,8 @@ history.df <- data.frame(hist_id <- as.numeric(),
                          hour <- as.numeric(),
                          minute <- as.numeric())
 
-journal_issue.df <- data.frame(issue_id <- as.numeric(),
+# TODO: Should we clean the ISSN to remove - so issue_id can be as.numeric?
+journal_issue.df <- data.frame(issue_id <- as.character(),
                                journal_id <- as.numeric(),
                                issn_type <- as.character(),
                                volume <- as.numeric(),
@@ -358,8 +359,7 @@ for ( i in 1:numArticles ){
                           stringsAsFactors = FALSE)
   
   # Check to see if journal already exists in table
-  # TODO: the [,2:ncol...] ignores the first column....because it has a PK not yet in the temp journal
-  journalID <- rowExists(a.journal, journal.df[,2:ncol(journal.df)])
+  journalID <- rowExists(a.journal, journal.df)
   
   # If journal doesn't exist, add it to the data frame
   if ( journalID == 0 ){
@@ -377,12 +377,15 @@ for ( i in 1:numArticles ){
   # ------------- #
   
   # issue id
-  journalIssueIDQuery <- "./MedlineCitation/Article/Journal/@IssnType"
-  journalIssueID <- xpathSApply(article, journalVolumeQuery, xmlValue)
-  # issn_type
-  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN"
-  journalIssnType <- xpathSApply(article, journalVolumeQuery, xmlValue)
+  journalIssueIDQuery <- "./MedlineCitation/Article/Journal/ISSN"
+  journalIssueID <- xpathSApply(article, journalIssueIDQuery, xmlValue)
+  print(paste("Journal Issue ID:", journalIssueID))
   
+  # issn_type
+  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
+  journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
+  print(paste("Journal Type:", journalIssnType))
+
   # Volume
   journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
   journalVolume <- xpathSApply(article, journalVolumeQuery, xmlValue)
@@ -436,8 +439,21 @@ for ( i in 1:numArticles ){
   # Check to see if journal issue is already saved
   an.issue <- data.frame(journalIssueID, journalID, journalIssnType,
                          journalVolume, journalIssue,
-                         journalIssueYear, journalIssueMonth)
-}
+                         journalIssueYear, journalIssueMonth,
+                         stringsAsFactors = FALSE)
+
+  # If journal doesn't exist, add it to the data frame
+  # TODO: Why is this column title weird
+  if ( !(any(journal_issue.df[,1] == journalIssueID)) ){
+    
+    # Set j_id to be the next unused row num in journal.df
+    newRow <- nrow(journal_issue.df) + 1
+    
+    # TODO: TBH, I don't understand why the first line isn't sufficient
+    journal_issue.df[newRow,] <- an.issue
+  }
+} 
+
 ```
 
 
@@ -612,6 +628,14 @@ journal.df
 # Explore and Mine Data
 
 ## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
+
+# Text XPath queries
+```{r}
+  query <- "//MedlineCitation/Article/Journal/ISSN/@IssnType"
+  x <- xpathSApply(article, query)
+  x
+```
+
 
 ```{r}
 dbDisconnect(dbcon)
