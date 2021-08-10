@@ -11,6 +11,7 @@ output:
 # TODO: look at order of table creation
 # TODO: add in disable FK constraints at beginning and then add in
 # TODO: do we need to do indexes?
+# TODO: do we want to use str_to_title() to standardize journal titles?
 ```
 
 # Load Packages
@@ -215,8 +216,10 @@ rowExists <- function (aRow, aDF){
   }
   
   for ( i in 1:num_rows ){
-    # check if all columns match for a row; ignore the value of the first column
+    
+    # check if all columns match for a row
     if ( all(aDF[i,] == aRow[1,]) ){
+      
       # found a match; return it's ID
       return(i)
     }
@@ -273,9 +276,9 @@ journal_issue.df <- data.frame(issue_id <- as.numeric(),
                                publication_year <- as.numeric(),
                                publication_month <- as.numeric())
 
-journal_issue.df <- data.frame(j_id <- as.numeric(),
-                               journal_name <- as.character(),
-                               iso_abbreviation <- as.character())
+journal.df <- data.frame(j_id <- as.numeric(),
+                         journal_name <- as.character(),
+                         iso_abbreviation <- as.character())
 ```
 
 ## Parse XML Document
@@ -291,7 +294,6 @@ r <- xmlRoot(xmlDOM)
 
 # get the number of articles in the XML file
 numArticles <- xmlSize(r)
-numArticles
 ```
 
 
@@ -309,6 +311,42 @@ article <- r[[14]]
   xmlSize(publicationData[[1]])
   xmlName(publicationData[[1]][[1]]) == 'Year'
 ```
+
+## Parse Article Information
+```{r}
+for ( i in 1:numArticles ){
+  
+  # parse first article information
+  article <- r[[i]]
+
+  # Extract Journal Information
+  # Journal Title
+  journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
+  journalTitle <- xpathSApply(article, journalTitleQuery, xmlValue)
+
+  # Journal Abbreviation
+  journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
+  journalAbbreviation <- xpathSApply(article, journalAbbreviationQuery, xmlValue)
+  
+  # Create temporary data frame to store new journal information
+  # TODO: Keep str_to_title()?
+  a.journal <- data.frame(str_to_title(journalTitle), journalAbbreviation, 
+                          stringsAsFactors = FALSE)
+  
+  # Check to see if journal already exists in table
+  j_id <- rowExists(a.journal, journal.df[,2:ncol(journal.df)])
+  
+  # If journal doesn't exist, add it to the data frame
+  if ( j_id == 0 ){
+    
+    # Set j_id to be the next unused row num in journal.df
+    j_id <- nrow(journal.df) + 1
+    journal.df[j_id,2:ncol(journal.df)] <- a.journal
+    journal.df[j_id, 1] <- j_id
+  }
+}
+```
+
 
 # Test at extracting article and journal information V3
 
