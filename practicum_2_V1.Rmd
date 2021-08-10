@@ -6,7 +6,8 @@ output:
 ---
 
 ```{r}
-# TODO: keep this handy: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
+# TODO: Update heading information
+# TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
 # TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key Constraints
 # TODO: look at order of table creation
 # TODO: add in disable FK constraints at beginning and then add in
