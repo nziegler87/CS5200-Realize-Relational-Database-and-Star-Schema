@@ -5,35 +5,6 @@ output:
     df_Print: paged
 ---
 
-```{r}
-# Most Important TODO
--------------------------------------------------
-# TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
-
-# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
-
-# TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info. Also, turns out that DateCreated, DateCompleted, and DateRevised are all connected to the citation (not the article), so I vote we take that out of the article table. **
-  # - Hmm do electronic articles have a journal date associated with them?
-  # - I agree with removing the DateCreated, DateCompleted and DateRevised - removed!
-
-# Less Important TODO
-  -----------------------------------------
-# TODO: do we need to do indexes?
-# TODO: do we want to use str_to_title() to standardize journal titles?
-# TODO: we may not use sqldf / could be removed 
-# TODO: the parsing chunk for each article is very long...should probably make some functions
-  
-  
-# Done TODO
------------------------------
-# TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key ConstraINTs
-# TODO: look at order of table creation **
-  # TODO: Update heading information
-  # TODO: add in disable FK constraINTs at beginning and then add in
-
-
-```
-
 # Load Packages
 
 ```{r}
@@ -48,7 +19,7 @@ library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
 ```
 
-## Connection Info for AWS - DONE
+## Connect to AWS
 
 ```{r}
 db_user <- "dbadmin"
@@ -89,7 +60,7 @@ CREATE TABLE Author (
   author_last_name VARCHAR(255) NOT NULL,
   author_fore_name VARCHAR(255) NOT NULL,
   author_initials VARCHAR(255),
-  author_affilitation TEXT -- TODO: changed to TEXT
+  author_affilitation TEXT -- TODO: changed blob to TEXT
 );
 ```
 
@@ -109,7 +80,6 @@ CREATE TABLE Article (
   article_title VARCHAR(255) NOT NULL,
   journal_issue_id INT NOT NULL,
   pub_model ENUM('Print', 'Print-Electronic', 'Electronic', 'Electronic-Print', 'Electronic-eCollection') NOT NULL,
-  date_published DATE NOT NULL -- TODO: Should any of these not be NOT NULL?
 );
 ```
 
@@ -129,7 +99,7 @@ CREATE TABLE Abstract (
   article_id INT NOT NULL,
   nlm_category ENUM('background', 'unassigned', 'methods', 'results', 'conclusions') NOT NULL,
   abstract_label ENUM('background', 'purpose_and_questions', 'patients_and_methods', 'results', 'conclusions') NOT NULL,
-  abstract_text TEXT, -- TODO: changed to TEXT
+  abstract_text TEXT, -- TODO: changed blob to TEXT
   
   CONSTRAINT article_id_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
@@ -814,4 +784,36 @@ journal.df
   query <- "//ArticleDate"
   x <- xpathSApply(article, query)
   unique(x)
+```
+
+# TODOs! 
+
+```{r}
+# Most Important TODO
+-------------------------------------------------
+# TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
+
+# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
+  # - I vote remove affiliation
+
+# TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info.**
+  # - Let's try removing the published_date from article table and see if any issues arise
+
+# Less Important TODO
+  -----------------------------------------
+# TODO: do we need to do indexes? - ugh do we?
+# TODO: check for nulls in the create tables - I assigned it to most attributes; pls check~
+# TODO: do we want to use str_to_title() to standardize journal titles?
+# TODO: we may not use sqldf / could be removed - lets see how it goes
+# TODO: the parsing chunk for each article is very long...should probably make some functions
+  
+# Done TODO
+-----------------------------
+# put in ERD
+# add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key ConstraINTs
+# look at order of table creation **
+# update heading information
+# add in disable FK constraINTs at beginning and then add in
+# DateCreated, DateCompleted, and DateRevised are all connected to the citation - take out of the article table.
+
 ```
