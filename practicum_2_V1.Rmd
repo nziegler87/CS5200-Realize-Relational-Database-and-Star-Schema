@@ -6,7 +6,7 @@ output:
 ---
 
 ```{r}
-# TODO: keep this handy: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/att-IssnType.html
+# TODO: keep this handy: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
 # TODO: add in NOT NULL and Foreign Key Constraints
 # TODO: look at order of table creation
 # TODO: add in disable FK constraints at beginning and then add in
@@ -165,7 +165,6 @@ DROP TABLE IF EXISTS Journal_Issue;
 CREATE TABLE `Journal_Issue` (
   `issue_id` int,
   `journal_id` int,
-  `issn_type` {Electronic, Print},
   `volume` int,
   `issue` int,
   `publication_year` int,
@@ -188,6 +187,8 @@ DROP TABLE IF EXISTS Journal;
 CREATE TABLE `Journal` (
   `j_id` int,
   `journal_name` varchar(200),
+  `issn` varchar(20),
+  `issn_type` {Electronic, Print},
   `iso_abbreviation` varchar(15),
   PRIMARY KEY (`j_id`)
 );
@@ -292,7 +293,6 @@ history.df <- data.frame(hist_id <- as.numeric(),
 # TODO: Should we clean the ISSN to remove - so issue_id can be as.numeric?
 journal_issue.df <- data.frame(issue_id <- as.character(),
                                journal_id <- as.numeric(),
-                               issn_type <- as.character(),
                                volume <- as.numeric(),
                                issue <- as.numeric(),
                                publication_year <- as.numeric(),
@@ -300,6 +300,8 @@ journal_issue.df <- data.frame(issue_id <- as.character(),
 
 journal.df <- data.frame(j_id <- as.numeric(),
                          journal_name <- as.character(),
+                         issn <- as.character(),
+                         issn_type <- as.character(),
                          iso_abbreviation <- as.character())
 ```
 
@@ -353,9 +355,18 @@ for ( i in 1:numArticles ){
   journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
   journalAbbreviation <- xpathSApply(article, journalAbbreviationQuery, xmlValue)
   
+  # ISSN ID
+  journalISSNQuery <- "./MedlineCitation/Article/Journal/ISSN"
+  journalISSN <- xpathSApply(article, journalISSNQuery, xmlValue)
+  
+  # ISSN Type
+  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
+  journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
+
   # Create temporary data frame to store new journal information
   # TODO: Keep str_to_title()?
-  a.journal <- data.frame(str_to_title(journalTitle), journalAbbreviation, 
+  a.journal <- data.frame(str_to_title(journalTitle), journalISSN,
+                          journalIssnType, journalAbbreviation, 
                           stringsAsFactors = FALSE)
   
   # Check to see if journal already exists in table
@@ -375,16 +386,6 @@ for ( i in 1:numArticles ){
   # ------------- #
   # Journal Issue #
   # ------------- #
-  
-  # issue id
-  journalIssueIDQuery <- "./MedlineCitation/Article/Journal/ISSN"
-  journalIssueID <- xpathSApply(article, journalIssueIDQuery, xmlValue)
-  print(paste("Journal Issue ID:", journalIssueID))
-  
-  # issn_type
-  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
-  journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
-  print(paste("Journal Type:", journalIssnType))
 
   # Volume
   journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
@@ -437,20 +438,22 @@ for ( i in 1:numArticles ){
   }
   
   # Check to see if journal issue is already saved
-  an.issue <- data.frame(journalIssueID, journalID, journalIssnType,
-                         journalVolume, journalIssue,
+  an.issue <- data.frame(journalID, journalVolume, journalIssue,
                          journalIssueYear, journalIssueMonth,
                          stringsAsFactors = FALSE)
 
+  # Check to see if journal already exists in table
+  issue_id <- rowExists(an.issue, journal_issue.df)
+  
   # If journal doesn't exist, add it to the data frame
-  # TODO: Why is this column title weird
-  if ( !(any(journal_issue.df[,1] == journalIssueID)) ){
+  if ( issue_id == 0 ){
     
     # Set j_id to be the next unused row num in journal.df
-    newRow <- nrow(journal_issue.df) + 1
+    issue_id <- nrow(journal_issue.df) + 1
     
     # TODO: TBH, I don't understand why the first line isn't sufficient
-    journal_issue.df[newRow,] <- an.issue
+    journal_issue.df[issue_id,2:ncol(journal_issue.df)] <- an.issue
+    journal_issue.df[issue_id, 1] <- issue_id
   }
 } 
 
@@ -631,9 +634,9 @@ journal.df
 
 # Text XPath queries
 ```{r}
-  query <- "//MedlineCitation/Article/Journal/ISSN/@IssnType"
+  query <- "//MedlineCitation/Article/Journal/JournalIssue/@CitedMedium"
   x <- xpathSApply(article, query)
-  x
+  unique(x)
 ```
 
 
