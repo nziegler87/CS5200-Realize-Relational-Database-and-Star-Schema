@@ -230,6 +230,27 @@ rowExists <- function (aRow, aDF){
 }
 ```
 
+```{r}
+monthYear <- function(month_text){
+  standardized_month_text <- toupper(month_text)
+  if ( is.na(standardized_month_text) ) return(NA)
+  else if ( standardized_month_text == "JAN" ) return(1)
+  else if ( standardized_month_text == "FEB" ) return (2)
+  else if ( standardized_month_text == "MAR" ) return (3)
+  else if ( standardized_month_text == "APR" ) return (4)
+  else if ( standardized_month_text == "MAY" ) return (5)
+  else if ( standardized_month_text == "JUN" ) return (6)
+  else if ( standardized_month_text == "JUL" ) return (7)
+  else if ( standardized_month_text == "AUG" ) return (8)
+  else if ( standardized_month_text == "SEP" ) return (9)
+  else if ( standardized_month_text == "OCT" ) return (10)
+  else if ( standardized_month_text == "NOV" ) return (11)
+  else if ( standardized_month_text == "DEC" ) return (12)
+  stop("Month text not found. Could not convert to number.")
+}
+```
+
+
 ## Create Data Frames
 
 ```{r}
@@ -319,7 +340,10 @@ for ( i in 1:numArticles ){
   # parse first article information
   article <- r[[i]]
 
-  # Extract Journal Information
+  # ------------------- #
+  # Journal Information #
+  # ------------------- #
+  
   # Journal Title
   journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
   journalTitle <- xpathSApply(article, journalTitleQuery, xmlValue)
@@ -334,6 +358,7 @@ for ( i in 1:numArticles ){
                           stringsAsFactors = FALSE)
   
   # Check to see if journal already exists in table
+  # TODO: the [,2:ncol...] ignores the first column....because it has a PK not yet in the temp journal
   j_id <- rowExists(a.journal, journal.df[,2:ncol(journal.df)])
   
   # If journal doesn't exist, add it to the data frame
@@ -341,9 +366,69 @@ for ( i in 1:numArticles ){
     
     # Set j_id to be the next unused row num in journal.df
     j_id <- nrow(journal.df) + 1
+    
+    # TODO: TBH, I don't understand why the first line isn't sufficient
     journal.df[j_id,2:ncol(journal.df)] <- a.journal
     journal.df[j_id, 1] <- j_id
   }
+  
+  # ------------- #
+  # Journal Issue #
+  # ------------- #
+  
+  # Volume
+  journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
+  journalVolume <- xpathSApply(article, journalVolumeQuery, xmlValue)
+  
+  # Issue
+  journalIssueQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Issue"
+  journalIssue <- xpathSApply(article, journalIssueQuery, xmlValue)
+
+  # Parse out publication data section of XML document
+  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
+  publicationData <- xpathSApply(article, publicationDataQuery)
+  
+  # Need to parse date differently: can be stored as MedlineDate or Month/Date
+  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ){
+    
+    ## if it is saved as MedlineDate, use substring to extract year and month
+    journalIssueYearQuery <-"substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
+    journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
+    
+    journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
+    journalIssueMonth <- xpathSApply(article, journalIssueMonthQuery, xmlValue)
+    
+    # Use function to convert text month to numeric
+    journalIssueMonth <- monthYear(journalIssueMonth)
+  } 
+  
+  ## If it is not saved as Medline, parse out Year and Month
+  ## TODO: Same as above, month should be converted from string to number
+  else{
+    journalIssueYear <- NA
+    journalIssueMonth <- NA
+    
+    # Because not every article has a pub month, using a for loop with xmlName to extract the data
+    
+    for ( j in 1:xmlSize(publicationData[[1]]) ){
+      ## If year is found, save year so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
+        journalIssueYear <- xmlValue(publicationData[[1]][[j]])
+      }
+      
+      ## If month is found, save so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
+        journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
+        
+        # Use function to convert text month to numeric
+        journalIssueMonth <- monthYear(journalIssueMonth)
+      }
+    }
+  }
+  
+  # Check to see if journal issue is already saved
+  a.journal_issue <- data.frame(j_id, )
+  
 }
 ```
 
