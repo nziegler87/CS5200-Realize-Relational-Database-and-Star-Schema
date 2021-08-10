@@ -475,13 +475,11 @@ for ( i in 1:numArticles ){
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
 
+    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN
     affiliation <- "UNKNOWN"
     if ( xmlSize(author) == 4 ){
       affiliation <- tolower(xmlValue(author[[4]]))
     }
-    
-   print(paste("last_name:", last_name, "| fore_name:", fore_name, "| initials:", initials, "| affiliation:", affiliation))
-
 
     an.author <- data.frame(last_name, fore_name, initials, affiliation,
                           stringsAsFactors = FALSE)
@@ -499,6 +497,8 @@ for ( i in 1:numArticles ){
       author.df[author_id, 1] <- author_id
     }
   }
+  
+  
 } 
 
 ```
