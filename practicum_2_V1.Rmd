@@ -2,28 +2,36 @@
 title: "Store XML in a Database"
 output:
   html_document:
-    df_print: paged
+    df_Print: paged
 ---
 
 ```{r}
 # Most Important TODO
+-------------------------------------------------
 # TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
-
-# TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key Constraints
-
-# TODO: look at order of table creation **
 
 # TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
 
 # TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info. Also, turns out that DateCreated, DateCompleted, and DateRevised are all connected to the citation (not the article), so I vote we take that out of the article table. **
+  # - Hmm do electronic articles have a journal date associated with them?
+  # - I agree with removing the DateCreated, DateCompleted and DateRevised - removed!
 
 # Less Important TODO
-# TODO: Update heading information
-# TODO: add in disable FK constraints at beginning and then add in
+  -----------------------------------------
 # TODO: do we need to do indexes?
 # TODO: do we want to use str_to_title() to standardize journal titles?
-# TODO: we may not use sqldf / could be removed
+# TODO: we may not use sqldf / could be removed 
 # TODO: the parsing chunk for each article is very long...should probably make some functions
+  
+  
+# Done TODO
+-----------------------------
+# TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key ConstraINTs
+# TODO: look at order of table creation **
+  # TODO: Update heading information
+  # TODO: add in disable FK constraINTs at beginning and then add in
+
+
 ```
 
 # Load Packages
@@ -53,7 +61,19 @@ dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host,
                    port = db_port, user = db_user, password = db_password)
 ```
 
+```{r}
+# View tables in the database
+dbListTables(dbcon)
+```
+
+```{sql connection=mydb}
+-- Turns off foreign key check
+SET FOREIGN_KEY_CHECKS = 0;
+```
+
 # ERD
+
+![](PracticumERD.png "Practicum ERD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1125%2C-339%2C8042%2C3233%2CqB62~LJfXzY6&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
 
 # Create Tables
 
@@ -64,18 +84,37 @@ DROP TABLE IF EXISTS Author;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `Author` (
-  `aut_id` int,
-  `author_last_name` varchar(200),
-  `author_fore_name` varchar(200),
-  `author_initials` varchar(5),
-  `author_affilitation` blob,
-  PRIMARY KEY (`aut_id`)
+CREATE TABLE Author (
+  aut_id INT PRIMARY KEY autoincrement,
+  author_last_name VARCHAR(255) NOT NULL,
+  author_fore_name VARCHAR(255) NOT NULL,
+  author_initials VARCHAR(255),
+  author_affilitation TEXT -- TODO: changed to TEXT
 );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM Author;
+```
+
+## ARTICLE
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Article;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE Article (
+  art_id` INT PRIMARY KEY autoincrement,
+  article_title VARCHAR(255) NOT NULL,
+  journal_issue_id INT NOT NULL,
+  pub_model ENUM('Print', 'Print-Electronic', 'Electronic', 'Electronic-Print', 'Electronic-eCollection') NOT NULL,
+  date_published DATE NOT NULL -- TODO: Should any of these not be NOT NULL?
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Article;
 ```
 
 ## ABSTRACT
@@ -85,13 +124,14 @@ DROP TABLE IF EXISTS Abstract;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `Abstract` (
-  `abstract_id` int,
-  `article_id` int,
-  `nlm_category` {background, unassigned, methods, results, conclusions},
-  `abstract_label` {background, purpose_and_questions, patients_and_methods, results, conclusions},
-  `abstract_text` blob,
-  PRIMARY KEY (`abstract_id`)
+CREATE TABLE Abstract (
+  abstract_id INT PRIMARY KEY autoincrement,
+  article_id INT NOT NULL,
+  nlm_category ENUM('background', 'unassigned', 'methods', 'results', 'conclusions') NOT NULL,
+  abstract_label ENUM('background', 'purpose_and_questions', 'patients_and_methods', 'results', 'conclusions') NOT NULL,
+  abstract_text TEXT, -- TODO: changed to TEXT
+  
+  CONSTRAINT article_id_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
 ```
 
@@ -106,40 +146,18 @@ DROP TABLE IF EXISTS Article_Author_Junction;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `Article_Author_Junction` (
-  `art_aut_id` int,
-  `author_id` int,
-  `article_id` int,
-  PRIMARY KEY (`art_aut_id`)
+CREATE TABLE Article_Author_Junction (
+  art_aut_id INT PRIMARY KEY autoincrement,
+  author_id INT NOT NULL,
+  article_id INT NOT NULL,
+  
+  CONSTRAINT author_id_fk FOREIGN KEY (author_id) REFERENCES Author(aut_id),
+  CONSTRAINT article_id_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM Article_Author_Junction;
-```
-
-## ARTICLE
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS Article;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE `Article` (
-  `art_id` int,
-  `article_title` varchar(200),
-  `journal_issue_id` int,
-  `pub_model` {Print, Print-Electronic, Electronic, Electronic-Print, Electronic-eCollection},
-  `date_created` DATE,
-  `date_completed` DATE,
-  `date_revised` DATE,
-  `date_published` DATE,
-  PRIMARY KEY (`art_id`)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM Article;
 ```
 
 ## HISTORY
@@ -149,43 +167,22 @@ DROP TABLE IF EXISTS History;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `Article_History` (
-  `hist_id` int,
-  `article_id` int,
-  `pub_status` {received, accepted, epublish, entrez, pubmed, medline, revised, aheadofprint},
-  `year` datetime,
-  `month` int,
-  `day` int,
-  `hour` int,
-  `minute` int,
-  PRIMARY KEY (`hist_id`)
+CREATE TABLE History (
+  hist_id INT PRIMARY KEY autoincrement,
+  article_id INT NOT NULL,
+  pub_status ENUM('received', 'accepted', 'epublish', 'entrez', 'pubmed', 'medline', 'revised', 'aheadofprint') NOT NULL,
+  year DATE NOT NULL,
+  month INT NOT NULL,
+  day INT NOT NULL,
+  hour INT NOT NULL,
+  minute INT NOT NULL,
+  
+  CONSTRAINT article_id_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM History;
-```
-
-## JOURNAL_ISSUE
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS Journal_Issue;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE `Journal_Issue` (
-  `issue_id` int,
-  `journal_id` int,
-  `volume` int,
-  `issue` int,
-  `publication_year` int,
-  `publication_month` int,
-  PRIMARY KEY (`issue_id`)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM Journal_Issue;
 ```
 
 ## JOURNAL
@@ -195,27 +192,51 @@ DROP TABLE IF EXISTS Journal;
 ```
 
 ```{sql connection=dbcon}
-CREATE TABLE `Journal` (
-  `j_id` int,
-  `journal_name` varchar(200),
-  `issn` varchar(20),
-  `issn_type` {Electronic, Print},
-  `iso_abbreviation` varchar(15),
-  PRIMARY KEY (`j_id`)
-);
+CREATE TABLE Journal (
+  j_id INT PRIMARY KEY autoincrement,
+  journal_name VARCHAR(255) NOT NULL,
+  issn VARCHAR(255) NOT NULL,
+  issn_type ENUM('Electronic', 'Print') NOT NULL,
+  iso_abbreviation VARCHAR(255) NOT NULL
+  );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM Journal;
 ```
 
-# Load Data
+## JOURNAL_ISSUE
 
-## Helper Functions
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Journal_Issue;
+```
 
-### Row Exists
+```{sql connection=dbcon}
+CREATE TABLE Journal_Issue (
+  issue_id INT PRIMARY KEY autoincrement,
+  journal_id INT NOT NULL,
+  volume INT NOT NULL,
+  issue INT NOT NULL,
+  publication_year INT NOT NULL,
+  publication_month INT NOT NULL,
+  
+  CONSTRAINT journal_id_fk FOREIGN KEY (journal_id) REFERENCES Journal(j_id)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Journal_Issue;
+```
+
+# Helper Functions
+
+## Row Exists
+
 A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
+
 ```{r}
+# TODO: Why wouldn't we just combine this with the function below?
+
 rowExists <- function (aRow, aDF){
   # check if that address is already in the data frame
   num_rows <- nrow(aDF)
@@ -241,8 +262,10 @@ rowExists <- function (aRow, aDF){
 }
 ```
 
-### Return PK Function
+## Return PK
+
 A function that return ths PK of a tuple from a data frame. This should only be used when the value to be found is in the dataframe, otherwise it will throw an error.
+
 ```{r}
 returnPK <- function (aRow, aDF){
   # check if that address is already in the data frame
@@ -269,30 +292,32 @@ returnPK <- function (aRow, aDF){
 }
 ```
 
-### monthYear
-A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered text is not valid.
+## monthYear
+
+A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered VARCHAR(255) is not valid.
+
 ```{r}
-monthYear <- function(month_text){
-  standardized_month_text <- toupper(month_text)
-  if ( is.na(standardized_month_text) ) return(NA)
-  else if ( standardized_month_text == "JAN" ) return(1)
-  else if ( standardized_month_text == "FEB" ) return (2)
-  else if ( standardized_month_text == "MAR" ) return (3)
-  else if ( standardized_month_text == "APR" ) return (4)
-  else if ( standardized_month_text == "MAY" ) return (5)
-  else if ( standardized_month_text == "JUN" ) return (6)
-  else if ( standardized_month_text == "JUL" ) return (7)
-  else if ( standardized_month_text == "AUG" ) return (8)
-  else if ( standardized_month_text == "SEP" ) return (9)
-  else if ( standardized_month_text == "OCT" ) return (10)
-  else if ( standardized_month_text == "NOV" ) return (11)
-  else if ( standardized_month_text == "DEC" ) return (12)
-  stop("Month text not found. Could not convert to number.")
+monthYear <- function(month_VARCHAR(255)){
+  standardized_month_VARCHAR(255) <- toupper(month_VARCHAR(255))
+  if ( is.na(standardized_month_VARCHAR(255)) ) return(NA)
+  else if ( standardized_month_VARCHAR(255) == "JAN" ) return(1)
+  else if ( standardized_month_VARCHAR(255) == "FEB" ) return (2)
+  else if ( standardized_month_VARCHAR(255) == "MAR" ) return (3)
+  else if ( standardized_month_VARCHAR(255) == "APR" ) return (4)
+  else if ( standardized_month_VARCHAR(255) == "MAY" ) return (5)
+  else if ( standardized_month_VARCHAR(255) == "JUN" ) return (6)
+  else if ( standardized_month_VARCHAR(255) == "JUL" ) return (7)
+  else if ( standardized_month_VARCHAR(255) == "AUG" ) return (8)
+  else if ( standardized_month_VARCHAR(255) == "SEP" ) return (9)
+  else if ( standardized_month_VARCHAR(255) == "OCT" ) return (10)
+  else if ( standardized_month_VARCHAR(255) == "NOV" ) return (11)
+  else if ( standardized_month_VARCHAR(255) == "DEC" ) return (12)
+  stop("Month VARCHAR(255) not found. Could not convert to number.")
 }
 ```
 
-
 ## Create Data Frames
+
 ```{r}
 author.df <- data.frame(aut_id <- as.numeric(),
                         author_last_name <- as.character(),
@@ -305,7 +330,7 @@ abstract.df <- data.frame(abstract_id <- as.numeric(),
                           article_id <- as.numeric(),
                           nlm_category <- as.character(),
                           abstract_label <- as.character(),
-                          abstract_text <- as.character(),
+                          abstract_VARCHAR(255) <- as.character(),
                           stringsAsFactors = FALSE)
 
 article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
@@ -350,25 +375,30 @@ journal.df <- data.frame(j_id <- as.numeric(),
                          stringsAsFactors = FALSE)
 ```
 
+# Load Data
+
 ## Parse XML Document
+
 ```{r}
 fn <- "pubmed_sample.xml"
 
-# Reading the XML file and parse into DOM
-xmlDOM <- xmlParse(file = fn)
+# Reading XML file and parse into DOM
+xmlDOM <- xmlParse(file = fn) 
 
-# get the root node of the DOM tree
-r <- xmlRoot(xmlDOM)
+# gGt root node 
+r <- xmlRoot(xmlDOM) 
 
-# get the number of articles in the XML file
-numArticles <- xmlSize(r)
+# Get number of articles in XML file
+numArticles <- xmlSize(r) 
 ```
 
 ## Parse Article Information
+
 ```{r}
+# Looping through all of the articles
 for ( i in 1:numArticles ){
   
-  # parse first article information
+  # parse first article
   article <- r[[i]]
 
   # ------------------- #
@@ -427,16 +457,16 @@ for ( i in 1:numArticles ){
   publicationData <- xpathSApply(article, publicationDataQuery)
   
   # Need to parse date differently: can be stored as MedlineDate or Month/Date
-  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ){
+  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ) {
     
     ## if it is saved as MedlineDate, use substring to extract year and month
-    journalIssueYearQuery <-"substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
+    journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
     journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
     
     journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
     journalIssueMonth <- xpathSApply(article, journalIssueMonthQuery, xmlValue)
     
-    # Use function to convert text month to numeric
+    # Use function to convert VARCHAR(255) month to numeric
     journalIssueMonth <- monthYear(journalIssueMonth)
   } 
   
@@ -448,6 +478,7 @@ for ( i in 1:numArticles ){
     # Because not every article has a pub month, using a for loop with xmlName to extract the data
     
     for ( j in 1:xmlSize(publicationData[[1]]) ){
+      
       ## If year is found, save year so it isn't NA
       if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
         journalIssueYear <- xmlValue(publicationData[[1]][[j]])
@@ -457,7 +488,7 @@ for ( i in 1:numArticles ){
       if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
         journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
         
-        # Use function to convert text month to numeric
+        # Use function to convert VARCHAR(255) month to numeric
         journalIssueMonth <- monthYear(journalIssueMonth)
       }
     }
@@ -502,16 +533,17 @@ for ( i in 1:numArticles ){
 
   # Loop through the AuthorsSet, extracting info and adding to authors table
   for ( i in 1:xmlSize(authorsResultSet) ){
+    
     author <- authorsResultSet[[i]]
     last_name <- str_to_title(xmlValue(author[[1]]))
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
 
-    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN. Okay?
+    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN. Okay? < YES
     affiliation <- "UNKNOWN"
     
-    # Because not every author has an affiliation, the check for a fourth
-    # element is done before extracting the info
+    # Because not every author has an affiliation, check for a fourth
+    # element before extracting the info
     if ( xmlSize(author) == 4 ){
       affiliation <- tolower(xmlValue(author[[4]]))
     }
@@ -536,6 +568,54 @@ for ( i in 1:numArticles ){
   }
 } 
 
+```
+
+# Upload Data
+
+## Prepare Data: Author
+
+```{r}
+dbWriteTable(dbcon, "Author", AuthorTable, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: Article
+
+```{r}
+dbWriteTable(dbcon, "Article", ArticleTable, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: Abstract
+
+```{r}
+dbWriteTable(dbcon, "Abstract", AbstractTable, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: Article Author Junction
+
+```{r}
+dbWriteTable(dbcon, "Article_Author_Junction", Article_Author_Juncion_Table, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: History
+
+```{r}
+dbWriteTable(dbcon, "History", HistoryTable, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: Journal
+
+```{r}
+dbWriteTable(dbcon, "Journal", JournalTable, row.names = FALSE, append = TRUE)
+```
+
+## Prepare Data: Journal_Issue
+
+```{r}
+dbWriteTable(dbcon, "Journal_Issue", Journal_Issue_Table, row.names = FALSE, append = TRUE)
+```
+
+```{sql connection=dbcon}
+SET FOREIGN_KEY_CHECKS = 1;
 ```
 
 # Create Star/Snowflake Schema
@@ -599,7 +679,7 @@ for ( i in 1:numArticles ){
   if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ){
     
     ## if it is saved as MedlineDate, use substring to extract year and month
-    ## TODO: Need to change month to int
+    ## TODO: Need to change month to INT
     journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
     journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
     
@@ -665,7 +745,7 @@ authors.df.temp  <- data.frame(author_last_name = character(),
                                stringsAsFactors = F)
 
 ## Create a final dataframe to hold authors, after uplicates are removed
-authors.df <- data.frame(aid = integer(),
+authors.df <- data.frame(aid = INTeger(),
                          author_last_name = character(),
                          author_fore_name = character(),
                          author_initials = character(),
@@ -707,7 +787,7 @@ sqldf("SELECT aid, author_last_name, author_fore_name, author_initials
 ## Dataframe for Journal
 
 ```{r}
-journal.df <- data.frame(j_id = integer(),
+journal.df <- data.frame(j_id = INTeger(),
                          journal_title= character(),
                          iso_abbreviation = character(),
                          stringsAsFactors = F)
@@ -728,7 +808,8 @@ for ( i in seq(1, (length(journals)), 2) ){
 journal.df
 ```
 
-# Text XPath queries
+# VARCHAR(255) XPath queries
+
 ```{r}
   query <- "//ArticleDate"
   x <- xpathSApply(article, query)
