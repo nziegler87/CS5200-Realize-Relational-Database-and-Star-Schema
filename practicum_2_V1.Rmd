@@ -259,17 +259,20 @@ author.df <- data.frame(aut_id <- as.numeric(),
                         author_last_name <- as.character(),
                         author_fore_name <- as.character(),
                         author_initlas <- as.character(),
-                        author_affiliation <- as.character())
+                        author_affiliation <- as.character(),
+                        stringsAsFactors = FALSE)
 
 abstract.df <- data.frame(abstract_id <- as.numeric(),
                           article_id <- as.numeric(),
                           nlm_category <- as.character(),
                           abstract_label <- as.character(),
-                          abstract_text <- as.character())
+                          abstract_text <- as.character(),
+                          stringsAsFactors = FALSE)
 
 article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
                                          author_id <- as.numeric(),
-                                         article_id <- as.numeric())
+                                         article_id <- as.numeric(),
+                                         stringsAsFactors = FALSE)
 
 # Had to put in NA for this to get it to load
 article.df <- data.frame(art_id <- as.numeric(NA),
@@ -279,7 +282,8 @@ article.df <- data.frame(art_id <- as.numeric(NA),
                          date_created <- as.Date(NA),
                          date_completed <- as.Date(NA),
                          date_revised <- as.Date(NA),
-                         date_published <- as.Date(NA))
+                         date_published <- as.Date(NA),
+                         stringsAsFactors = FALSE)
 
 history.df <- data.frame(hist_id <- as.numeric(),
                          article_id <- as.numeric(),
@@ -288,7 +292,8 @@ history.df <- data.frame(hist_id <- as.numeric(),
                          month <- as.numeric(),
                          day <- as.numeric(),
                          hour <- as.numeric(),
-                         minute <- as.numeric())
+                         minute <- as.numeric(),
+                         stringsAsFactors = FALSE)
 
 # TODO: Should we clean the ISSN to remove - so issue_id can be as.numeric?
 journal_issue.df <- data.frame(issue_id <- as.character(),
@@ -296,13 +301,15 @@ journal_issue.df <- data.frame(issue_id <- as.character(),
                                volume <- as.numeric(),
                                issue <- as.numeric(),
                                publication_year <- as.numeric(),
-                               publication_month <- as.numeric())
+                               publication_month <- as.numeric(),
+                               stringsAsFactors = FALSE)
 
 journal.df <- data.frame(j_id <- as.numeric(),
                          journal_name <- as.character(),
                          issn <- as.character(),
                          issn_type <- as.character(),
-                         iso_abbreviation <- as.character())
+                         iso_abbreviation <- as.character(),
+                         stringsAsFactors = FALSE)
 ```
 
 ## Parse XML Document
@@ -328,12 +335,11 @@ r[[12]]
 ```
 
 ```{r}
-article <- r[[14]]
-  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
-  publicationData <- xpathSApply(article, publicationDataQuery)
-  publicationData
-  xmlSize(publicationData[[1]])
-  xmlName(publicationData[[1]][[1]]) == 'Year'
+article <- r[[1]]
+  x <- "./MedlineCitation/Article/AuthorList/Author"
+  x <- xpathSApply(article, x)
+  length(x[[1]])
+  xmlSize(x[[2]])
 ```
 
 ## Parse Article Information
@@ -454,6 +460,40 @@ for ( i in 1:numArticles ){
     # TODO: TBH, I don't understand why the first line isn't sufficient
     journal_issue.df[issue_id,2:ncol(journal_issue.df)] <- an.issue
     journal_issue.df[issue_id, 1] <- issue_id
+  }
+  
+  # ------- #
+  # Authors #
+  # ------- #
+  authorsQuery <- "./MedlineCitation/Article/AuthorList/Author"
+  authorsResultSet <- xpathSApply(article, authorsQuery)
+
+  for ( i in 1:xmlSize(authorsResultSet) ){
+    author <- authorsResultSet[[i]]
+    last_name <- str_to_title(xmlValue(author[[1]]))
+    fore_name <- str_to_title(xmlValue(author[[2]]))
+    initials <- toupper(xmlValue(author[[3]]))
+
+    affiliation <- NA
+    if ( xmlSize(author) == 4 ){
+      affiliation <- tolower(xmlValue(author[[4]]))
+    }
+
+  an.author <- data.frame(last_name, fore_name, initials, affiliation,
+                          stringsAsFactors = FALSE)
+
+  author_id <- rowExists(an.author, author.df)
+
+  # If journal doesn't exist, add it to the data frame
+  if ( author_id == 0 ){
+
+    # Set author_id to be the next unused row num in author.df
+    author_id <- nrow(author.df) + 1
+
+    # TODO: TBH, I don't understand why the first line isn't sufficient
+    author.df[author_id,2:ncol(author.df)] <- an.author
+    author.df[author_id, 1] <- author_id
+    }
   }
 } 
 
