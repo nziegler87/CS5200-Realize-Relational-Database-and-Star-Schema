@@ -7,13 +7,15 @@ output:
 
 ```{r}
 # TODO: keep this handy: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
-# TODO: add in NOT NULL and Foreign Key Constraints
+# TODO: add in NOT NULL, move PRIMARY KEY in line with the attribute, and Foreign Key Constraints
 # TODO: look at order of table creation
 # TODO: add in disable FK constraints at beginning and then add in
 # TODO: do we need to do indexes?
 # TODO: do we want to use str_to_title() to standardize journal titles?
-# TODO: do we really need sqldf?
-# TODO: bringing in affiliation is causing many duplicates...do we clean or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html
+# TODO: we may not use sqldf / could be removed
+# TODO: the parsing chunk for each article is very long...should probably make some functions
+# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier
+# TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? Also, turns out that DateCreated, DateCompleted, and DateRevised are all connected to the citation (not the article), so I vote we take that out of the article table.
 ```
 
 # Load Packages
@@ -233,6 +235,32 @@ rowExists <- function (aRow, aDF){
 ```
 
 ```{r}
+returnPK <- function (aRow, aDF){
+  # check if that address is already in the data frame
+  num_rows <- nrow(aDF)
+  num_cols <- ncol(aDF)
+  
+  if ( num_rows == 0 ){
+    # data frame is empty, so can't exist
+    stop("Data frame in which value should be stored is empty.")
+  }
+  
+  for ( i in 1:num_rows ){
+    
+    # check if all columns match for a row
+    if ( all(aDF[i,2:ncol(aDF)] == aRow[1,]) ){
+      
+      # found a match; return it's ID
+      return(aDF[i,1])
+    }
+  }
+  
+  # none matched
+  stop("Value could not be found in data frame.")
+}
+```
+
+```{r}
 monthYear <- function(month_text){
   standardized_month_text <- toupper(month_text)
   if ( is.na(standardized_month_text) ) return(NA)
@@ -296,7 +324,7 @@ history.df <- data.frame(hist_id <- as.numeric(),
                          minute <- as.numeric(),
                          stringsAsFactors = FALSE)
 
-# TODO: Should we clean the ISSN to remove - so issue_id can be as.numeric?
+# TODO: Should we clean the ISSN to remove the '-' so issue_id can be as.numeric?
 journal_issue.df <- data.frame(issue_id <- as.character(),
                                journal_id <- as.numeric(),
                                volume <- as.numeric(),
@@ -337,10 +365,9 @@ r[[12]]
 
 ```{r}
 article <- r[[1]]
-  x <- "./MedlineCitation/Article/AuthorList/Author"
+  x <- "./MedlineCitation/Article/ArticleDate"
   x <- xpathSApply(article, x)
-  length(x[[1]])
-  xmlSize(x[[2]])
+  x
 ```
 
 ## Parse Article Information
@@ -463,6 +490,19 @@ for ( i in 1:numArticles ){
     journal_issue.df[issue_id, 1] <- issue_id
   }
   
+  # -------- #
+  # Articles #
+  # -------- #
+  
+  # Article Title
+  articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
+  articleTitle <- xpathSApply(article, articleTitleQuery, xmlValue)
+  
+  pubModelQuery <- "./MedlineCitation/Article/@PubModel"
+  pubModel <- xpathSApply(article, pubModelQuery)
+  
+
+
   # ------- #
   # Authors #
   # ------- #
@@ -497,6 +537,10 @@ for ( i in 1:numArticles ){
       author.df[author_id, 1] <- author_id
     }
   }
+
+
+  
+  
   
   
 } 
@@ -678,7 +722,7 @@ journal.df
 
 # Text XPath queries
 ```{r}
-  query <- "//MedlineCitation/Article/Journal/JournalIssue/@CitedMedium"
+  query <- "//ArticleDate"
   x <- xpathSApply(article, query)
   unique(x)
 ```
