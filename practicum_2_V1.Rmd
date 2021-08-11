@@ -96,8 +96,15 @@ DROP TABLE IF EXISTS Abstract;
 CREATE TABLE Abstract (
   abstract_id INT PRIMARY KEY AUTO_INCREMENT,
   article_id INT NOT NULL,
-  nlm_category ENUM('background', 'unassigned', 'methods', 'results', 'conclusions') NOT NULL,
-  abstract_label ENUM('background', 'purpose_and_questions', 'patients_and_methods', 'results', 'conclusions') NOT NULL,
+  nlm_category ENUM("BACKGROUND", "UNASSIGNED", "METHODS", "RESULTS",
+                    "CONCLUSIONS", "OBJECTIVE", "UNKNOWN") NOT NULL,
+  abstract_label ENUM("BACKGROUND","PURPOSE AND QUESTIONS","PATIENTS AND METHODS",
+                      "RESULTS","CONCLUSIONS","METHODS","BACKGROUND AND PURPOSE",
+                      "BACKGROUND AND OBJECTIVES","PURPOSE","QUESTIONS/PURPOSES",
+                      "OBJECTIVE","CONCLUSION","DESIGN","SETTINGS","PATIENTS",
+                      "INTERVENTIONS","MAIN OUTCOME MEASURES","STUDY OBJECTIVE",
+                      "SETTING","MEASUREMENTS","MAIN RESULTS","STUDY DESIGN",
+                      "SUMMARY OF BACKGROUND DATA","INTRODUCTION","UNKNOWN") NOT NULL,
   abstract_text TEXT, -- TODO: changed blob to TEXT
   
   CONSTRAINT article_id_in_abstract_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
@@ -140,12 +147,14 @@ CREATE TABLE History (
   hist_id INT PRIMARY KEY AUTO_INCREMENT,
   article_id INT NOT NULL,
   pub_status ENUM('received', 'accepted', 'epublish', 'entrez', 'pubmed', 'medline', 'revised', 'aheadofprint') NOT NULL,
-  year DATE NOT NULL,
+  year INT NOT NULL,
   month INT NOT NULL,
-  day INT NOT NULL, --TODO: I removed hour, and min
+  day INT NOT NULL,
   
   CONSTRAINT article_id_in_history_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
+
+-- TODO: I removed hour, and min
 ```
 
 ```{sql connection=dbcon}
@@ -203,8 +212,6 @@ SELECT * FROM Journal_Issue;
 A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
 
 ```{r}
-# TODO: Why wouldn't we just combine this with the function below?
-
 rowExists <- function (aRow, aDF){
   # check if that address is already in the data frame
   num_rows <- nrow(aDF)
@@ -227,36 +234,6 @@ rowExists <- function (aRow, aDF){
   
   # none matched
   return(0)
-}
-```
-
-## Return PK
-
-A function that return ths PK of a tuple from a data frame. This should only be used when the value to be found is in the dataframe, otherwise it will throw an error.
-
-```{r}
-returnPK <- function (aRow, aDF){
-  # check if that address is already in the data frame
-  num_rows <- nrow(aDF)
-  num_cols <- ncol(aDF)
-  
-  if ( num_rows == 0 ){
-    # data frame is empty, so can't exist
-    stop("Data frame in which value should be stored is empty.")
-  }
-  
-  for ( i in 1:num_rows ){
-    
-    # check if all columns match for a row
-    if ( all(aDF[i,2:ncol(aDF)] == aRow[1,]) ){
-      
-      # found a match; return it's ID
-      return(aDF[i,1])
-    }
-  }
-  
-  # none matched
-  stop("Value could not be found in data frame.")
 }
 ```
 
@@ -637,6 +614,17 @@ dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append
 SET FOREIGN_KEY_CHECKS = 1;
 ```
 
+## Query to see if data is correct
+```{sql connection=dbcon}
+SELECT article_title, journal_name, volume, issue, publication_year, publication_month
+FROM Article AS A
+     JOIN Journal_Issue AS JI
+     ON A.art_id = JI.issue_id
+     JOIN Journal AS J
+     ON JI.journal_id = J.j_id;
+```
+
+
 # Create Star/Snowflake Schema
 
 ## (20 pts) Create and populate a star schema with dimension and transaction fact tables. Each row in the fact table will represent one article. Include the image of an updated ERD that contains the fact table and any additional required dimension tables. Populate the star schema in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
@@ -655,7 +643,9 @@ dbDisconnect(dbcon)
 
 ```{r}
 # This gets you the article information
-r[[15]]
+query <- "//AbstractText/@NlmCategory"
+labels <- unique(xpathSApply(r, query))
+labels
 ```
 
 ```{r}
@@ -665,21 +655,6 @@ article <- r[[15]]
   history
 
 ```
-# SQLDF to check how things are working
-
-```{r}
-sqldf('SELECT "author_last_name....as.character..", "author_fore_name....as.character..",
-       "article_title....as.character..", ji.*, j.* FROM "article.df" AS a 
-       JOIN "article_author_junction.df" AS aj
-       ON a."art_id....as.numeric.." = aj."article_id....as.numeric.."
-       JOIN "author.df" AS ar
-       ON aj."author_id....as.numeric.." = ar."aut_id....as.numeric.."
-       JOIN "journal_issue.df" AS ji
-       ON "journal_issue_id....as.numeric.." = "issue_id....as.numeric.."
-       JOIN "journal.df" AS j
-       ON "journal_id....as.numeric.." = "j_id....as.numeric.."')
-```
-
 
 # XPath queries
 
