@@ -614,7 +614,7 @@ dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append
 SET FOREIGN_KEY_CHECKS = 1;
 ```
 
-## Query to see if data is correct
+## Queries to see if data is correct
 ```{sql connection=dbcon}
 SELECT article_title, journal_name, volume, issue, publication_year, publication_month
 FROM Article AS A
@@ -623,7 +623,13 @@ FROM Article AS A
      JOIN Journal AS J
      ON JI.journal_id = J.j_id;
 ```
-
+```{sql connection=dbcon}
+SELECT article_title, COUNT(art_aut_id) As AuthorCount
+FROM Article AS A
+     JOIN Article_Author_Junction AS AJ
+     ON A.art_id = AJ.article_id
+GROUP BY article_title;
+```
 
 # Create Star/Snowflake Schema
 
@@ -637,31 +643,6 @@ FROM Article AS A
 
 ```{r}
 dbDisconnect(dbcon)
-```
-
-# Everything below this line is simply for testing / experimentation
-
-```{r}
-# This gets you the article information
-query <- "//AbstractText/@NlmCategory"
-labels <- unique(xpathSApply(r, query))
-labels
-```
-
-```{r}
-article <- r[[15]]
-  journalCountryQuery <- "./MedlineCitation/MedlineJournalInfo/Country"
-  journalCountry <- xpathSApply(article, journalCountryQuery, xmlValue)
-  history
-
-```
-
-# XPath queries
-
-```{r}
-  query <- "//AuthorList/Author/LastName"
-  x <- xpathSApply(article, query, xmlValue)
-  length(unique(x))
 ```
 
 # TODOs! 
