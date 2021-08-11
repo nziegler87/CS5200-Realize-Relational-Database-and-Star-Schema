@@ -737,6 +737,8 @@ dbDisconnect(dbcon)
 # TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info.**
   # - Let's try removing the published_date from article table and see if any issues arise
   # - Done. I also loaded the history table with information between the <history> tags. Was pretty easy, so just went with it. If we decide to remove, can do so. I did not populate with pub_date of the journal issue; can do if you think we need to.
+  
+# TODO: Do we need to use schemas to separate the different tables?
 
 # Less Important TODO
   -----------------------------------------
