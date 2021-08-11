@@ -12,9 +12,6 @@ library(DBI)
 library(RMySQL)
 library(XML)
 
-library(sqldf)
-options(sqldf.driver = "SQLite")   ## Setting needed to use sqldf with non sqlite database
-
 library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
 ```
@@ -59,7 +56,7 @@ CREATE TABLE Author (
   aut_id INT PRIMARY KEY AUTO_INCREMENT,
   author_last_name VARCHAR(255) NOT NULL,
   author_fore_name VARCHAR(255) NOT NULL,
-  author_initials VARCHAR(255)
+  author_initials VARCHAR(255) NOT NULL,
 );
 ```
 
@@ -261,6 +258,10 @@ monthYear <- function(month_text){
 }
 ```
 
+## parseJournalInfo
+
+Takes an article_node and extracts needed information to add to article.df
+
 ```{r}
 parseJournalInfo <- function(article_node){
   # Journal Title
@@ -291,6 +292,10 @@ parseJournalInfo <- function(article_node){
   return(a.journal)
 }
 ```
+
+## parseJournalIssueInfo
+
+Takes an article_node and journal_id and extracts needed information to add to journal.df
 
 ```{r}
 parseJournalIssueInfo <- function(journal_id, article_node){
@@ -338,7 +343,7 @@ parseJournalIssueInfo <- function(journal_id, article_node){
       if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
         journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
         
-        # Use function to convert VARCHAR(255) month to numeric
+        # Use function to convert text month to numeric
         journalIssueMonth <- monthYear(journalIssueMonth)
       }
     }
@@ -460,7 +465,7 @@ for ( i in 1:numArticles ){
     # Set journalID to be the next unused row num in journal.df
     journalID <- nrow(journal.df) + 1
     
-    # TODO: TBH, I don't understand why the first line isn't sufficient
+    # add record to data frame
     journal.df[journalID,2:ncol(journal.df)] <- a.journal
     journal.df[journalID, 1] <- journalID
   }
@@ -479,7 +484,7 @@ for ( i in 1:numArticles ){
     # Set issue_id to be the next unused row num in journal_issue.df
     issueID <- nrow(journal_issue.df) + 1
     
-    # TODO: TBH, I don't understand why the first line isn't sufficient
+    # add record to data frame
     journal_issue.df[issueID,2:ncol(journal_issue.df)] <- an.issue
     journal_issue.df[issueID, 1] <- issueID
   }
@@ -498,7 +503,7 @@ for ( i in 1:numArticles ){
     # Set issue_id to be the next unused row num in journal_issue.df
     articleID <- nrow(article.df) + 1
     
-    # TODO: TBH, I don't understand why the first line isn't sufficient
+    # add record to data frame
     article.df[articleID,2:ncol(article.df)] <- an.article
     article.df[articleID, 1] <- articleID
   }
@@ -528,7 +533,7 @@ for ( i in 1:numArticles ){
       # Set authorID to be the next unused row num in author.df
       authorID <- nrow(author.df) + 1
 
-      # TODO: TBH, I don't understand why the first line isn't sufficient
+      # add record to data frame
       author.df[authorID,2:ncol(author.df)] <- an.author
       author.df[authorID, 1] <- authorID
     }
@@ -554,7 +559,7 @@ for ( i in 1:numArticles ){
     nlm <- xmlAttrs(abstractRecord[[1]])[2]
     text <- xmlValue(abstractRecord[[1]])
     
-    # TODO: try removing the last is.null
+    # if any of the data is not found, set it to UNKNOWN
     if ( is.null(label) ) label <- "UNKNOWN"
     if ( is.null(nlm) ) nlm <- "UNKNOWN"
     if ( is.null(text) ) text <- "UNKNOWN"
@@ -582,7 +587,9 @@ for ( i in 1:numArticles ){
     
     historyEntryID <- nrow(history.df) + 1
     
-    a.historyEntry <- data.frame(historyEntryID, articleID, publicationStatus, year, month, day)
+    # add to df
+    a.historyEntry <- data.frame(historyEntryID, articleID, publicationStatus, 
+                                 year, month, day)
     history.df[historyEntryID,] <- a.historyEntry
   }
 } 
@@ -656,11 +663,13 @@ FROM Article AS A
 GROUP BY article_title;
 ```
 ```{sql connection=dbcon}
-SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name), COUNT(AJ.author_id)
+SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName, 
+       COUNT(AJ.author_id) AS ArticleCount
 FROM Article_Author_Junction AS AJ
      JOIN Author AS AR
      ON AJ.author_id = AR.aut_id
-GROUP BY AR.aut_id;
+GROUP BY AR.aut_id
+ORDER BY ArticleCount DESC;
 ```
 
 # Create Star/Snowflake Schema
@@ -680,25 +689,22 @@ dbDisconnect(dbcon)
 # TODOs!
 
 ```{r}
+# Nate Update
+  # I _think_ a first pass of this phase is done. The entire notebook runs in one go (can just hit start from the top)
+  # And the test sql queries seem to be working!
+
 # Most Important TODO
 -------------------------------------------------
 # TODO: Check this out...super helpful: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
 
-# TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
-  # - I vote remove affiliation
-  # - Dropped us to 86 values! I used xpath to extract all author last names and removed duplicates and wound up with 79,
-  #   which are likely because of the initial situations....can look at this later, if we want!
-
 # TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info.**
   # - Let's try removing the published_date from article table and see if any issues arise
+  # - Done. I also loaded the history table with information between the <history> tags. Was pretty easy, so just went with it. If we decide to remove, can do so. I did not populate with pub_date of the journal issue; can do if you think we need to.
 
 # Less Important TODO
   -----------------------------------------
-# TODO: do we need to do indexes? - ugh do we?
-# TODO: check for nulls in the create tables - I assigned it to most attributes; pls check~
-# TODO: do we want to use str_to_title() to standardize journal titles?
-# TODO: we may not use sqldf / could be removed - lets see how it goes
-# TODO: the parsing chunk for each article is very long...should probably make some functions
+# TODO: do we need to do indexes? - ugh do we? - alas...we do...post on Teams
+
   
 # Done TODO
 -----------------------------
@@ -708,5 +714,17 @@ dbDisconnect(dbcon)
 # update heading information
 # add in disable FK constraINTs at beginning and then add in
 # DateCreated, DateCompleted, and DateRevised are all connected to the citation - take out of the article table.
+  
+# Bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
+  # - I vote remove affiliation
+  # - Dropped us to 86 values! I used xpath to extract all author last names and removed duplicates and wound up with 79,
+  #   which are likely because of the initial situations....can look at this later, if we want!
+
+# Check for nulls in the create tables - I assigned it to most attributes; pls check~
+# We may not use sqldf / could be removed - lets see how it goes - removed (NZ)
+# Do we want to use str_to_title() to standardize journal titles? - looks fine
+# Parsing chunk for each article is very long...should probably make some functions -- created two functions to slim it down
+
+
 
 ```
