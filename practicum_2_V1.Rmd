@@ -316,7 +316,7 @@ parseJournalIssueInfo <- function(journal_id, article_node){
     journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
     journalIssueMonth <- xpathSApply(article_node, journalIssueMonthQuery, xmlValue)
     
-    # Use function to convert VARCHAR(255) month to numeric
+    # Use function to convert text month to numeric
     journalIssueMonth <- monthYear(journalIssueMonth)
   } 
   
