@@ -509,9 +509,9 @@ for ( i in 1:numArticles ){
   authorsResultSet <- xpathSApply(article, authorsQuery)
 
   # Loop through the AuthorsSet, extracting info and adding to authors table
-  for ( i in 1:xmlSize(authorsResultSet) ){
+  for ( j in 1:xmlSize(authorsResultSet) ){
     
-    author <- authorsResultSet[[i]]
+    author <- authorsResultSet[[j]]
     last_name <- str_to_title(xmlValue(author[[1]]))
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
@@ -536,9 +536,59 @@ for ( i in 1:numArticles ){
     articleAuthorID <- nrow(article_author_junction.df) + 1
     an.article_author_junction <- data.frame(articleAuthorID, authorID, articleID)
     article_author_junction.df[articleAuthorID,] <- an.article_author_junction
-    
-    # TODO: Once the article.df is populated, add in a step here to populate the article_author junction table
   }
+  
+  # ------- #
+  # History #
+  # ------- #
+  
+  # Extract history information
+  
+  
+  # # -------- #
+  # # Abstract #
+  # # -------- #
+  # 
+  # # extract information for all the abstract info as three lists
+  # abstractLabelQuery <- "./MedlineCitation/Article/Abstract/AbstractText/@Label"
+  # abstractLabels <- xpathSApply(article, abstractLabelQuery)
+  # 
+  # abstractNLMQuery <- "./MedlineCitation/Article/Abstract/AbstractText/@NlmCategory"
+  # abstractNLMCategories <- xpathSApply(article, abstractNLMQuery)
+  # 
+  # # The labels are "TEXT", so this removes the ""...a handy function
+  # noquote(abstractLabels)
+  # noquote(abstractNLMCategories)
+  # 
+  # abstractTextQuery <- "./MedlineCitation/Article/Abstract/AbstractText"
+  # abstractText <- xpathSApply(article, abstractTextQuery, xmlValue)
+  # 
+  # # iterate through list of abstract info, create an abstract record and add it
+  # # to the abstract.df
+  # for ( j in 1:length(abstractLabels) ){
+  #   label <- NA
+  #   nlm <- NA
+  #   text <- NA
+  #   
+  #   label <- abstractLabels[j]
+  #   nlm <- abstractNLMCategories[j]
+  #   text <- abstractText[j]
+  #   
+  #   
+  #   abstractID <- nrow(abstract.df) + 1
+  #   
+  #   an.abstractEntry <- data.frame(abstractID, articleID, nlm, label, text )
+  #   
+  #   abstract.df[abstractID,] <- an.abstractEntry
+  # }
+  
+  historyDataQuery <- "./PubmedData/History/PubMedPubDate"
+  historyDataSet <- xpathSApply(article, historyDataQuery)
+  
+  for ( j in 1:length(historyDataSet) ){
+    historyEntry <- 
+  }
+  
 } 
 
 ```
@@ -614,173 +664,12 @@ r[[12]]
 
 ```{r}
 article <- r[[1]]
-  x <- "./MedlineCitation/Article/ArticleDate"
-  x <- xpathSApply(article, x)
-  x
+  x <- "./PubmedData/History/PubMedPubDate"
+  labels <- xpathSApply(article, x)
+  labels[[1]]
+  noquote(xmlAttrs(labels[[1]]))
+
 ```
-
-# Test at extracting article and journal information V3
-
-```{r}
-test.df <- data.frame(journalVolume = character(),
-                      journalIssue = character(),
-                      journalIssueYear = character(),
-                      journalIssueMonth = character(),
-                      journalTitle = character(),
-                      journalAbbreviation = character(),
-                      articleTitle = character(),
-                      stringsAsFactors = F)
-
-for ( i in 1:numArticles ){
-  article <- r[[i]]
-
-  # Journal Information
-  
-  # Volume
-  journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
-  journalVolume <- xpathSApply(article, journalVolumeQuery, xmlValue)
-  
-  # Issue
-  journalIssueQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Issue"
-  journalIssue <- xpathSApply(article, journalIssueQuery, xmlValue)
-
-  # Extracting Publication Year
-  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
-  publicationData <- xpathSApply(article, publicationDataQuery)
-  
-  # If date is stored as MedlineDate, parse differently that if it is saved as separate month / date
-  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ){
-    
-    ## if it is saved as MedlineDate, use substring to extract year and month
-    ## TODO: Need to change month to INT
-    journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
-    journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
-    
-    journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
-    journalIssueMonth <- xpathSApply(article, journalIssueMonthQuery, xmlValue)
-  } 
-  
-  ## If it is not saved as Medline, parse out Year and Month
-  ## TODO: Same as above, month should be converted from string to number
-  else{
-    journalIssueYear <- NA
-    journalIssueMonth <- NA
-    
-    # Because not every article has a pub month, using a for loop with xmlName to extract the data
-    
-    for ( j in 1:xmlSize(publicationData[[1]]) ){
-      ## If year is found, save year so it isn't NA
-      if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
-        journalIssueYear <- xmlValue(publicationData[[1]][[j]])
-      }
-      
-      ## If month is found, save so it isn't NA
-      if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
-        journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
-      }
-    }
-  }
-  
-  # Journal Title
-  journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
-  journalTitle <- xpathSApply(article, journalTitleQuery, xmlValue)
-  journalTitle
-  
-  # Journal Abbreviation
-  journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
-  journalAbbreviation <- xpathSApply(article, journalAbbreviationQuery, xmlValue)
-  journalAbbreviation
-  
-  # Article Title
-  articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
-  articleTitle <- xpathSApply(article, articleTitleQuery, xmlValue)
-  articleTitle
-  
-  test.df[i,] <- c(journalVolume,
-                   journalIssue,
-                   journalIssueYear,
-                   journalIssueMonth,
-                   journalTitle,
-                   journalAbbreviation,
-                   articleTitle)
-}
-test.df
-```
-
-## Pre-Load the Dataframe for Authors
-
-```{r}
-## Create temporary dataframe to hold all authors, before duplicates removed
-authors.df.temp  <- data.frame(author_last_name = character(),
-                               author_fore_name = character(),
-                               author_initials = character(),
-                               # author_affiliation = character(),
-                               stringsAsFactors = F)
-
-## Create a final dataframe to hold authors, after uplicates are removed
-authors.df <- data.frame(aid = INTeger(),
-                         author_last_name = character(),
-                         author_fore_name = character(),
-                         author_initials = character(),
-                         # author_affiliation = character(),
-                         stringsAsFactors = F)
-
-## Use xpath to extract list of all authors
-xpathEx <- "//Author"
-authors <- xpathSApply(xmlDOM, xpathEx)
-
-## Iterate through nodes and add all found authors to temp dataframe
-## Note conversion to all lower case, which helps in removing duplicates later
-for ( i in 1:length(authors)){
-  an.author <- authors[[i]]
-  last_name <- tolower(xmlValue(an.author[[1]]))
-  fore_name <- tolower(xmlValue(an.author[[2]]))
-  initials <- toupper(xmlValue(an.author[[3]]))
-  new.author <- c(last_name, fore_name, initials)
-  authors.df.temp[i,] <- new.author
-}
-
-## Use dplyr to remove duplicates
-unique.authors <- distinct(authors.df.temp)
-
-## Add finalized author list to dataframe
-## Note conversion back to title case
-for ( i in 1:nrow(unique.authors)) {
-  authors.df[i,] <- c(i, str_to_title(unique.authors[i,1]), 
-                      str_to_title(unique.authors[i,2]), unique.authors[i,3])
-}
-
-## Ya Lin Chiu and Ya-Lin Chiu as YL
-## Paul Christos as P and Paul J Christos as PJ
-sqldf("SELECT aid, author_last_name, author_fore_name, author_initials 
-       FROM 'authors.df'
-       ORDER BY author_last_name")
-```
-
-## Dataframe for Journal
-
-```{r}
-journal.df <- data.frame(j_id = INTeger(),
-                         journal_title= character(),
-                         iso_abbreviation = character(),
-                         stringsAsFactors = F)
-
-## Use xpath to extract list of all journals
-xpathEx <- "//Journal/Title | //Journal/ISOAbbreviation"
-journals <- xpathSApply(xmlDOM, xpathEx, xmlValue)
-
-journalNum <- 1
-for ( i in seq(1, (length(journals)), 2) ){
-  journal_title <- journals[[i]]
-  journal_abv <- journals[[i + 1]]
-  new.journal <- c(journalNum, journal_title, journal_abv)
-  journal.df[journalNum,] <- new.journal
-  journalNum <- journalNum + 1
-}
-
-journal.df
-```
-
 # SQLDF to check how things are working
 
 ```{r}
