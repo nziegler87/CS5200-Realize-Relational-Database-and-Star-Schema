@@ -267,22 +267,22 @@ returnPK <- function (aRow, aDF){
 A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered VARCHAR(255) is not valid.
 
 ```{r}
-monthYear <- function(month_VARCHAR(255)){
-  standardized_month_VARCHAR(255) <- toupper(month_VARCHAR(255))
-  if ( is.na(standardized_month_VARCHAR(255)) ) return(NA)
-  else if ( standardized_month_VARCHAR(255) == "JAN" ) return(1)
-  else if ( standardized_month_VARCHAR(255) == "FEB" ) return (2)
-  else if ( standardized_month_VARCHAR(255) == "MAR" ) return (3)
-  else if ( standardized_month_VARCHAR(255) == "APR" ) return (4)
-  else if ( standardized_month_VARCHAR(255) == "MAY" ) return (5)
-  else if ( standardized_month_VARCHAR(255) == "JUN" ) return (6)
-  else if ( standardized_month_VARCHAR(255) == "JUL" ) return (7)
-  else if ( standardized_month_VARCHAR(255) == "AUG" ) return (8)
-  else if ( standardized_month_VARCHAR(255) == "SEP" ) return (9)
-  else if ( standardized_month_VARCHAR(255) == "OCT" ) return (10)
-  else if ( standardized_month_VARCHAR(255) == "NOV" ) return (11)
-  else if ( standardized_month_VARCHAR(255) == "DEC" ) return (12)
-  stop("Month VARCHAR(255) not found. Could not convert to number.")
+monthYear <- function(month_text){
+  standardized_month_text <- toupper(month_text)
+  if ( is.na(standardized_month_text) ) return(NA)
+  else if ( standardized_month_text == "JAN" ) return(1)
+  else if ( standardized_month_text == "FEB" ) return (2)
+  else if ( standardized_month_text == "MAR" ) return (3)
+  else if ( standardized_month_text == "APR" ) return (4)
+  else if ( standardized_month_text == "MAY" ) return (5)
+  else if ( standardized_month_text == "JUN" ) return (6)
+  else if ( standardized_month_text == "JUL" ) return (7)
+  else if ( standardized_month_text == "AUG" ) return (8)
+  else if ( standardized_month_text == "SEP" ) return (9)
+  else if ( standardized_month_text == "OCT" ) return (10)
+  else if ( standardized_month_text == "NOV" ) return (11)
+  else if ( standardized_month_text == "DEC" ) return (12)
+  stop("Month text not found. Could not convert to number.")
 }
 ```
 
@@ -293,14 +293,13 @@ author.df <- data.frame(aut_id <- as.numeric(),
                         author_last_name <- as.character(),
                         author_fore_name <- as.character(),
                         author_initlas <- as.character(),
-                        author_affiliation <- as.character(),
                         stringsAsFactors = FALSE)
 
 abstract.df <- data.frame(abstract_id <- as.numeric(),
                           article_id <- as.numeric(),
                           nlm_category <- as.character(),
                           abstract_label <- as.character(),
-                          abstract_VARCHAR(255) <- as.character(),
+                          abstract_text <- as.character(),
                           stringsAsFactors = FALSE)
 
 article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
@@ -308,15 +307,10 @@ article_author_junction.df <- data.frame(art_aut_id <- as.numeric(),
                                          article_id <- as.numeric(),
                                          stringsAsFactors = FALSE)
 
-# Had to put in NA for this to get it to load...hopefully it works!
-article.df <- data.frame(art_id <- as.numeric(NA),
-                         article_title <- as.character(NA),
-                         journal_issue_id <- as.numeric(NA),
-                         pub_model <- as.character(NA),
-                         date_created <- as.Date(NA),
-                         date_completed <- as.Date(NA),
-                         date_revised <- as.Date(NA),
-                         date_published <- as.Date(NA),
+article.df <- data.frame(art_id <- as.numeric(),
+                         article_title <- as.character(),
+                         journal_issue_id <- as.numeric(),
+                         pub_model <- as.character(),
                          stringsAsFactors = FALSE)
 
 history.df <- data.frame(hist_id <- as.numeric(),
@@ -469,17 +463,17 @@ for ( i in 1:numArticles ){
                          journalIssueYear, journalIssueMonth,
                          stringsAsFactors = FALSE)
 
-  issue_id <- rowExists(an.issue, journal_issue.df)
+  issueID <- rowExists(an.issue, journal_issue.df)
   
   # If journal issue doesn't exist, add it to the data frame
-  if ( issue_id == 0 ){
+  if ( issueID == 0 ){
     
     # Set issue_id to be the next unused row num in journal_issue.df
-    issue_id <- nrow(journal_issue.df) + 1
+    issueID <- nrow(journal_issue.df) + 1
     
     # TODO: TBH, I don't understand why the first line isn't sufficient
-    journal_issue.df[issue_id,2:ncol(journal_issue.df)] <- an.issue
-    journal_issue.df[issue_id, 1] <- issue_id
+    journal_issue.df[issueID,2:ncol(journal_issue.df)] <- an.issue
+    journal_issue.df[issueID, 1] <- issueID
   }
   
   # -------- #
@@ -493,8 +487,21 @@ for ( i in 1:numArticles ){
   pubModelQuery <- "./MedlineCitation/Article/@PubModel"
   pubModel <- xpathSApply(article, pubModelQuery)
   
-  # TODO: Continue here
-
+  an.article <- data.frame(articleTitle, journalID, pubModel)
+  
+  articleID <- rowExists(an.article, article.df)
+  
+  # If journal issue doesn't exist, add it to the data frame
+  if ( articleID == 0 ){
+    
+    # Set issue_id to be the next unused row num in journal_issue.df
+    articleID <- nrow(article.df) + 1
+    
+    # TODO: TBH, I don't understand why the first line isn't sufficient
+    article.df[articleID,2:ncol(article.df)] <- an.article
+    article.df[articleID, 1] <- articleID
+  }
+  
   # ------- #
   # Authors #
   # ------- #
@@ -509,16 +516,7 @@ for ( i in 1:numArticles ){
     fore_name <- str_to_title(xmlValue(author[[2]]))
     initials <- toupper(xmlValue(author[[3]]))
 
-    # TODO: Instead of setting affiliation to NA, I set it to UNKNOWN. Okay? < YES
-    affiliation <- "UNKNOWN"
-    
-    # Because not every author has an affiliation, check for a fourth
-    # element before extracting the info
-    if ( xmlSize(author) == 4 ){
-      affiliation <- tolower(xmlValue(author[[4]]))
-    }
-
-    an.author <- data.frame(last_name, fore_name, initials, affiliation,
+    an.author <- data.frame(last_name, fore_name, initials,
                           stringsAsFactors = FALSE)
 
     author_id <- rowExists(an.author, author.df)
@@ -781,9 +779,9 @@ journal.df
 # VARCHAR(255) XPath queries
 
 ```{r}
-  query <- "//ArticleDate"
-  x <- xpathSApply(article, query)
-  unique(x)
+  query <- "//AuthorList/Author/LastName"
+  x <- xpathSApply(article, query, xmlValue)
+  length(unique(x))
 ```
 
 # TODOs! 
@@ -795,6 +793,8 @@ journal.df
 
 # TODO: bringing in affiliation is causing many duplicates in the author table...do we clean (make all small caps or all big caps) or delete? Could try something like this: https://astrostatistics.psu.edu/su07/R/library/base/html/agrep.html I'm leaning toward deleting...easier. Check out the author.df and the person with the last name Memtsoudis for an example **
   # - I vote remove affiliation
+  # - Dropped us to 86 values! I used xpath to extract all author last names and removed duplicates and wound up with 79,
+  #   which are likely because of the initial situations....can look at this later, if we want!
 
 # TODO: I'm stuck on published_date for an article. I'm thinking that we possibly remove published_date from the article table. Instead, because each article is linked to a particular journal issue, that is the published date? There is an ArticleDate element, but that is only for articles that were published electronically...some are missing that info.**
   # - Let's try removing the published_date from article table and see if any issues arise
