@@ -615,6 +615,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 ```
 
 ## Queries to see if data is correct
+
 ```{sql connection=dbcon}
 SELECT article_title, journal_name, volume, issue, publication_year, publication_month
 FROM Article AS A
@@ -623,6 +624,7 @@ FROM Article AS A
      JOIN Journal AS J
      ON JI.journal_id = J.j_id;
 ```
+
 ```{sql connection=dbcon}
 SELECT article_title, COUNT(art_aut_id) As AuthorCount
 FROM Article AS A
@@ -645,7 +647,7 @@ GROUP BY article_title;
 dbDisconnect(dbcon)
 ```
 
-# TODOs! 
+# TODOs!
 
 ```{r}
 # Most Important TODO
