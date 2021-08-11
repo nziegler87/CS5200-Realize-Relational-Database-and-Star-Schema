@@ -261,6 +261,113 @@ monthYear <- function(month_text){
 }
 ```
 
+```{r}
+parseJournalInfo <- function(article_node){
+  # Journal Title
+  journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
+  journalTitle <- xpathSApply(article_node, journalTitleQuery, xmlValue)
+
+  # Journal Abbreviation
+  journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
+  journalAbbreviation <- xpathSApply(article_node, journalAbbreviationQuery, xmlValue)
+  
+  # ISSN ID
+  journalISSNQuery <- "./MedlineCitation/Article/Journal/ISSN"
+  journalISSN <- xpathSApply(article_node, journalISSNQuery, xmlValue)
+  
+  # ISSN Type
+  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
+  journalIssnType <- xpathSApply(article_node, journalIssnTypeQuery)
+
+  # Journal Country
+  journalCountryQuery <- "./MedlineCitation/MedlineJournalInfo/Country"
+  journalCountry <- xpathSApply(article_node, journalCountryQuery, xmlValue)
+  
+  # Create temporary data frame to store new journal information
+  a.journal <- data.frame(str_to_title(journalTitle), journalISSN,
+                          journalIssnType, journalAbbreviation, 
+                          journalCountry, stringsAsFactors = FALSE)
+  
+  return(a.journal)
+}
+```
+
+```{r}
+parseJournalIssueInfo <- function(journal_id, article_node){
+  # Volume
+  journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
+  journalVolume <- xpathSApply(article_node, journalVolumeQuery, xmlValue)
+  
+  # Issue
+  journalIssueQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Issue"
+  journalIssue <- xpathSApply(article_node, journalIssueQuery, xmlValue)
+
+  # Parse out publication data section of XML document
+  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
+  publicationData <- xpathSApply(article_node, publicationDataQuery)
+  
+  # Need to parse date differently: can be stored as MedlineDate or Month/Date
+  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ) {
+    
+    ## if it is saved as MedlineDate, use substring to extract year and month
+    journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
+    journalIssueYear <- xpathSApply(article_node, journalIssueYearQuery, xmlValue)
+    
+    journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
+    journalIssueMonth <- xpathSApply(article_node, journalIssueMonthQuery, xmlValue)
+    
+    # Use function to convert VARCHAR(255) month to numeric
+    journalIssueMonth <- monthYear(journalIssueMonth)
+  } 
+  
+  ## If it is not saved as Medline, parse out Year and Month
+  else{
+    journalIssueYear <- NA
+    journalIssueMonth <- NA
+    
+    # Because not every article has a pub month, using a for loop with xmlName to extract the data
+    
+    for ( j in 1:xmlSize(publicationData[[1]]) ){
+      
+      ## If year is found, save year so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
+        journalIssueYear <- xmlValue(publicationData[[1]][[j]])
+      }
+      
+      ## If month is found, save so it isn't NA
+      if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
+        journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
+        
+        # Use function to convert VARCHAR(255) month to numeric
+        journalIssueMonth <- monthYear(journalIssueMonth)
+      }
+    }
+  }
+  
+    an.issue <- data.frame(journal_id, journalVolume, journalIssue,
+                         journalIssueYear, journalIssueMonth,
+                         stringsAsFactors = FALSE)
+  
+  return(an.issue)
+}
+```
+
+```{r}
+parseArticleInfo <- function(journal_id, article_node){
+  # Article Title
+  articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
+  articleTitle <- xpathSApply(article_node, articleTitleQuery, xmlValue)
+  
+  # Pub Model
+  pubModelQuery <- "./MedlineCitation/Article/@PubModel"
+  pubModel <- xpathSApply(article_node, pubModelQuery)
+  
+  an.article <- data.frame(articleTitle, journal_id, pubModel)
+  
+  return(an.article)
+}
+```
+
 ## Create Data Frames
 
 ```{r}
@@ -342,31 +449,7 @@ for ( i in 1:numArticles ){
   # ------------------- #
   # Journal Information #
   # ------------------- #
-  
-  # Journal Title
-  journalTitleQuery <- "./MedlineCitation/Article/Journal/Title"
-  journalTitle <- xpathSApply(article, journalTitleQuery, xmlValue)
-
-  # Journal Abbreviation
-  journalAbbreviationQuery <- "./MedlineCitation/Article/Journal/ISOAbbreviation"
-  journalAbbreviation <- xpathSApply(article, journalAbbreviationQuery, xmlValue)
-  
-  # ISSN ID
-  journalISSNQuery <- "./MedlineCitation/Article/Journal/ISSN"
-  journalISSN <- xpathSApply(article, journalISSNQuery, xmlValue)
-  
-  # ISSN Type
-  journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
-  journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
-
-  # Journal Country
-  journalCountryQuery <- "./MedlineCitation/MedlineJournalInfo/Country"
-  journalCountry <- xpathSApply(article, journalCountryQuery, xmlValue)
-  
-  # Create temporary data frame to store new journal information
-  a.journal <- data.frame(str_to_title(journalTitle), journalISSN,
-                          journalIssnType, journalAbbreviation, 
-                          journalCountry, stringsAsFactors = FALSE)
+  a.journal <- parseJournalInfo(article)
   
   # Check to see if journal already exists in journal.df
   journalID <- rowExists(a.journal, journal.df)
@@ -386,61 +469,8 @@ for ( i in 1:numArticles ){
   # Journal Issue #
   # ------------- #
 
-  # Volume
-  journalVolumeQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Volume"
-  journalVolume <- xpathSApply(article, journalVolumeQuery, xmlValue)
+  an.issue <- parseJournalIssueInfo(journalID, article)
   
-  # Issue
-  journalIssueQuery <- "./MedlineCitation/Article/Journal/JournalIssue/Issue"
-  journalIssue <- xpathSApply(article, journalIssueQuery, xmlValue)
-
-  # Parse out publication data section of XML document
-  publicationDataQuery <- "./MedlineCitation/Article/Journal/JournalIssue/PubDate"
-  publicationData <- xpathSApply(article, publicationDataQuery)
-  
-  # Need to parse date differently: can be stored as MedlineDate or Month/Date
-  if ( (xmlName(publicationData[[1]][[1]]) == 'MedlineDate') ) {
-    
-    ## if it is saved as MedlineDate, use substring to extract year and month
-    journalIssueYearQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate,1, 4)"
-    journalIssueYear <- xpathSApply(article, journalIssueYearQuery, xmlValue)
-    
-    journalIssueMonthQuery <- "substring(./MedlineCitation/Article/Journal/JournalIssue/PubDate/MedlineDate, 6, 3)"
-    journalIssueMonth <- xpathSApply(article, journalIssueMonthQuery, xmlValue)
-    
-    # Use function to convert VARCHAR(255) month to numeric
-    journalIssueMonth <- monthYear(journalIssueMonth)
-  } 
-  
-  ## If it is not saved as Medline, parse out Year and Month
-  else{
-    journalIssueYear <- NA
-    journalIssueMonth <- NA
-    
-    # Because not every article has a pub month, using a for loop with xmlName to extract the data
-    
-    for ( j in 1:xmlSize(publicationData[[1]]) ){
-      
-      ## If year is found, save year so it isn't NA
-      if ( xmlName(publicationData[[1]][[j]]) == 'Year' ){
-        journalIssueYear <- xmlValue(publicationData[[1]][[j]])
-      }
-      
-      ## If month is found, save so it isn't NA
-      if ( xmlName(publicationData[[1]][[j]]) == 'Month' ){
-        journalIssueMonth <- xmlValue(publicationData[[1]][[j]])
-        
-        # Use function to convert VARCHAR(255) month to numeric
-        journalIssueMonth <- monthYear(journalIssueMonth)
-      }
-    }
-  }
-  
-  # Check to see if journal issue is already saved
-  an.issue <- data.frame(journalID, journalVolume, journalIssue,
-                         journalIssueYear, journalIssueMonth,
-                         stringsAsFactors = FALSE)
-
   issueID <- rowExists(an.issue, journal_issue.df)
   
   # If journal issue doesn't exist, add it to the data frame
@@ -458,14 +488,7 @@ for ( i in 1:numArticles ){
   # Articles #
   # -------- #
   
-  # Article Title
-  articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
-  articleTitle <- xpathSApply(article, articleTitleQuery, xmlValue)
-  
-  pubModelQuery <- "./MedlineCitation/Article/@PubModel"
-  pubModel <- xpathSApply(article, pubModelQuery)
-  
-  an.article <- data.frame(articleTitle, journalID, pubModel)
+  an.article <- parseArticleInfo(journalID, article)
   
   articleID <- rowExists(an.article, article.df)
   
