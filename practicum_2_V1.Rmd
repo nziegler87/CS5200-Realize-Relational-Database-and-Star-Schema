@@ -626,11 +626,18 @@ FROM Article AS A
 ```
 
 ```{sql connection=dbcon}
-SELECT article_title, COUNT(art_aut_id) As AuthorCount
+SELECT SUBSTRING(article_title, 1, 75) AS ArticleTitle, COUNT(art_aut_id) As AuthorCount
 FROM Article AS A
      JOIN Article_Author_Junction AS AJ
      ON A.art_id = AJ.article_id
 GROUP BY article_title;
+```
+```{sql connection=dbcon}
+SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name), COUNT(AJ.author_id)
+FROM Article_Author_Junction AS AJ
+     JOIN Author AS AR
+     ON AJ.author_id = AR.aut_id
+GROUP BY AR.aut_id;
 ```
 
 # Create Star/Snowflake Schema
