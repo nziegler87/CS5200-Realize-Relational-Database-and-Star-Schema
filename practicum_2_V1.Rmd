@@ -323,7 +323,7 @@ history.df <- data.frame(hist_id <- as.numeric(),
                          minute <- as.numeric(),
                          stringsAsFactors = FALSE)
 
-journal_issue.df <- data.frame(issue_id <- as.character(),
+journal_issue.df <- data.frame(issue_id <- as.numeric(),
                                journal_id <- as.numeric(),
                                volume <- as.numeric(),
                                issue <- as.numeric(),
@@ -781,7 +781,23 @@ for ( i in seq(1, (length(journals)), 2) ){
 journal.df
 ```
 
-# VARCHAR(255) XPath queries
+# SQLDF to check how things are working
+
+```{r}
+sqldf('SELECT "author_last_name....as.character..", "author_fore_name....as.character..",
+       "article_title....as.character..", ji.*, j.* FROM "article.df" AS a 
+       JOIN "article_author_junction.df" AS aj
+       ON a."art_id....as.numeric.." = aj."article_id....as.numeric.."
+       JOIN "author.df" AS ar
+       ON aj."author_id....as.numeric.." = ar."aut_id....as.numeric.."
+       JOIN "journal_issue.df" AS ji
+       ON "journal_issue_id....as.numeric.." = "issue_id....as.numeric.."
+       JOIN "journal.df" AS j
+       ON "journal_id....as.numeric.." = "j_id....as.numeric.."')
+```
+
+
+# XPath queries
 
 ```{r}
   query <- "//AuthorList/Author/LastName"
