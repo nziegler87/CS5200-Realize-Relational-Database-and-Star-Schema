@@ -672,6 +672,20 @@ GROUP BY AR.aut_id
 ORDER BY ArticleCount DESC;
 ```
 ```{sql connection=dbcon}
+SELECT SUBSTRING(article_title, 1, 50) AS ArticleTitle, journal_name,
+       volume, issue, publication_year, publication_month,
+       H.pub_status, H.year, H.month, H.day
+FROM Article AS A
+     JOIN Journal_Issue AS JI
+     ON A.art_id = JI.issue_id
+     JOIN Journal AS J
+     ON JI.journal_id = J.j_id
+     JOIN History AS H
+     ON H.article_id = A.art_id
+WHERE A.art_id = 16;
+```
+
+```{sql connection=dbcon}
 SELECT * FROM Article;
 ```
 
