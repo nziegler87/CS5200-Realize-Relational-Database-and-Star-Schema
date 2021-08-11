@@ -536,49 +536,36 @@ for ( i in 1:numArticles ){
     article_author_junction.df[articleAuthorID,] <- an.article_author_junction
   }
   
+  # -------- #
+  # Abstract #
+  # -------- #
+
+  abstractInfoQuery <- "./MedlineCitation/Article/Abstract/AbstractText"
+  abstractInfoDataSet <- xpathSApply(article, abstractInfoQuery)
+
+  # iterate through list of abstract info, create an abstract record and add it
+  # to the abstract.df
+  for ( j in 1:length(abstractInfoDataSet) ){
+    abstractRecord <- abstractInfoDataSet[j]
+    label <- xmlAttrs(abstractRecord[[1]])[1]
+    nlm <- xmlAttrs(abstractRecord[[1]])[2]
+    text <- xmlValue(abstractRecord[[1]])
+    
+    # TODO: try removing the last is.null
+    if ( is.null(label) ) label <- "UNKNOWN"
+    if ( is.null(nlm) ) nlm <- "UNKNOWN"
+    if ( is.null(text) ) text <- "UNKNOWN"
+
+    abstractID <- nrow(abstract.df) + 1
+
+    an.abstractEntry <- data.frame(abstractID, articleID, nlm, label, text )
+
+    abstract.df[abstractID,] <- an.abstractEntry
+  }
+
   # ------- #
   # History #
   # ------- #
-  
-  # Extract history information
-  
-  
-  # # -------- #
-  # # Abstract #
-  # # -------- #
-  # 
-  # # extract information for all the abstract info as three lists
-  # abstractLabelQuery <- "./MedlineCitation/Article/Abstract/AbstractText/@Label"
-  # abstractLabels <- xpathSApply(article, abstractLabelQuery)
-  # 
-  # abstractNLMQuery <- "./MedlineCitation/Article/Abstract/AbstractText/@NlmCategory"
-  # abstractNLMCategories <- xpathSApply(article, abstractNLMQuery)
-  # 
-  # # The labels are "TEXT", so this removes the ""...a handy function
-  # noquote(abstractLabels)
-  # noquote(abstractNLMCategories)
-  # 
-  # abstractTextQuery <- "./MedlineCitation/Article/Abstract/AbstractText"
-  # abstractText <- xpathSApply(article, abstractTextQuery, xmlValue)
-  # 
-  # # iterate through list of abstract info, create an abstract record and add it
-  # # to the abstract.df
-  # for ( j in 1:length(abstractLabels) ){
-  #   label <- NA
-  #   nlm <- NA
-  #   text <- NA
-  #   
-  #   label <- abstractLabels[j]
-  #   nlm <- abstractNLMCategories[j]
-  #   text <- abstractText[j]
-  #   
-  #   
-  #   abstractID <- nrow(abstract.df) + 1
-  #   
-  #   an.abstractEntry <- data.frame(abstractID, articleID, nlm, label, text )
-  #   
-  #   abstract.df[abstractID,] <- an.abstractEntry
-  # }
   
   historyDataQuery <- "./PubmedData/History/PubMedPubDate"
   historyDataSet <- xpathSApply(article, historyDataQuery)
@@ -665,16 +652,15 @@ dbDisconnect(dbcon)
 
 ```{r}
 # This gets you the article information
-r[[12]]
+r[[15]]
 ```
 
 ```{r}
-article <- r[[1]]
-  x <- "./PubmedData/History/PubMedPubDate"
+article <- r[[15]]
+  x <- "./MedlineCitation/Article/Abstract/AbstractText"
   history <- xpathSApply(article, x)
-  selectHistory <- history[1]
-  selectHistory
-  xmlAttrs(selectHistory[[1]])
+  attribute <- xmlValue(history[[1]])
+  attribute
 
 ```
 # SQLDF to check how things are working
