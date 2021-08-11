@@ -519,18 +519,23 @@ for ( i in 1:numArticles ){
     an.author <- data.frame(last_name, fore_name, initials,
                           stringsAsFactors = FALSE)
 
-    author_id <- rowExists(an.author, author.df)
+    authorID <- rowExists(an.author, author.df)
 
     # If author doesn't exist, add it to the data frame
-    if ( author_id == 0 ){
+    if ( authorID == 0 ){
 
-      # Set author_id to be the next unused row num in author.df
-      author_id <- nrow(author.df) + 1
+      # Set authorID to be the next unused row num in author.df
+      authorID <- nrow(author.df) + 1
 
       # TODO: TBH, I don't understand why the first line isn't sufficient
-      author.df[author_id,2:ncol(author.df)] <- an.author
-      author.df[author_id, 1] <- author_id
+      author.df[authorID,2:ncol(author.df)] <- an.author
+      author.df[authorID, 1] <- authorID
     }
+    
+    # Retrieve next line in the junction table and add linking to author and article
+    articleAuthorID <- nrow(article_author_junction.df) + 1
+    an.article_author_junction <- data.frame(articleAuthorID, authorID, articleID)
+    article_author_junction.df[articleAuthorID,] <- an.article_author_junction
     
     # TODO: Once the article.df is populated, add in a step here to populate the article_author junction table
   }
