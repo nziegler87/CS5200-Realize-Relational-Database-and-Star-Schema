@@ -167,7 +167,8 @@ CREATE TABLE Journal (
   journal_name VARCHAR(255) NOT NULL,
   issn VARCHAR(255) NOT NULL,
   issn_type ENUM('Electronic', 'Print') NOT NULL,
-  iso_abbreviation VARCHAR(255) NOT NULL
+  iso_abbreviation VARCHAR(255) NOT NULL,
+  journal_country VARHCAR(255) NOT NULL
   );
 ```
 
@@ -334,6 +335,7 @@ journal.df <- data.frame(j_id <- as.numeric(),
                          issn <- as.character(),
                          issn_type <- as.character(),
                          iso_abbreviation <- as.character(),
+                         journal_country <- as.character(),
                          stringsAsFactors = FALSE)
 ```
 
@@ -383,10 +385,14 @@ for ( i in 1:numArticles ){
   journalIssnTypeQuery <- "./MedlineCitation/Article/Journal/ISSN/@IssnType"
   journalIssnType <- xpathSApply(article, journalIssnTypeQuery)
 
+  # Journal Country
+  journalCountryQuery <- "./MedlineCitation/MedlineJournalInfo/Country"
+  journalCountry <- xpathSApply(article, journalCountryQuery, xmlValue)
+  
   # Create temporary data frame to store new journal information
   a.journal <- data.frame(str_to_title(journalTitle), journalISSN,
                           journalIssnType, journalAbbreviation, 
-                          stringsAsFactors = FALSE)
+                          journalCountry, stringsAsFactors = FALSE)
   
   # Check to see if journal already exists in journal.df
   journalID <- rowExists(a.journal, journal.df)
@@ -657,10 +663,9 @@ r[[15]]
 
 ```{r}
 article <- r[[15]]
-  x <- "./MedlineCitation/Article/Abstract/AbstractText"
-  history <- xpathSApply(article, x)
-  attribute <- xmlValue(history[[1]])
-  attribute
+  journalCountryQuery <- "./MedlineCitation/MedlineJournalInfo/Country"
+  journalCountry <- xpathSApply(article, journalCountryQuery, xmlValue)
+  history
 
 ```
 # SQLDF to check how things are working
