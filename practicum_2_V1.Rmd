@@ -671,6 +671,29 @@ FROM Article_Author_Junction AS AJ
 GROUP BY AR.aut_id
 ORDER BY ArticleCount DESC;
 ```
+```{sql connection=dbcon}
+SELECT * FROM Article;
+```
+
+
+```{sql connection=dbcon}
+SELECT article_title, Abstract.*
+FROM Article
+     JOIN Abstract
+     ON Article.art_id = Abstract.article_id
+WHERE Article.art_id = 3;
+```
+
+```{sql connection=dbcon}
+SELECT article_title, Author.*
+FROM Article
+     JOIN Article_Author_Junction
+     ON Article.art_id = Article_Author_Junction.article_id
+     JOIN Author
+     ON Article_Author_Junction.author_id = Author.aut_id
+WHERE Article.art_id = 3;
+```
+
 
 # Create Star/Snowflake Schema
 
@@ -703,7 +726,7 @@ dbDisconnect(dbcon)
 
 # Less Important TODO
   -----------------------------------------
-# TODO: do we need to do indexes? - ugh do we? - alas...we do...post on Teams
+# TODO: do we need to do indexes? - ugh do we? - alas...we do...post on Teams...need to brainstorm some
 
   
 # Done TODO
