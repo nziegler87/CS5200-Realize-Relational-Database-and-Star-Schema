@@ -11,7 +11,7 @@ output:
 library(DBI)
 library(RMySQL)
 library(XML)
-
+library(sqldf)
 library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
 ```
@@ -41,7 +41,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 # ERD
 
-![](PracticumERD.png "Practicum ERD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1125%2C-339%2C8042%2C3233%2CqB62~LJfXzY6&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+## TODO: Need to double check this ERD
+
+![](Practicum2 - ERD.png "Practicum2 - ERD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1125%2C-339%2C8042%2C3233%2CqB62~LJfXzY6&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
 
 # Create Tables
 
@@ -102,7 +104,7 @@ CREATE TABLE Abstract (
                       "INTERVENTIONS","MAIN OUTCOME MEASURES","STUDY OBJECTIVE",
                       "SETTING","MEASUREMENTS","MAIN RESULTS","STUDY DESIGN",
                       "SUMMARY OF BACKGROUND DATA","INTRODUCTION","UNKNOWN") NOT NULL,
-  abstract_text TEXT, -- TODO: changed blob to TEXT
+  abstract_text TEXT,
   
   CONSTRAINT article_id_in_abstract_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
@@ -150,8 +152,6 @@ CREATE TABLE History (
   
   CONSTRAINT article_id_in_history_fk FOREIGN KEY (article_id) REFERENCES Article(art_id)
 );
-
--- TODO: I removed hour, and min
 ```
 
 ```{sql connection=dbcon}
@@ -454,6 +454,7 @@ for ( i in 1:numArticles ){
   # ------------------- #
   # Journal Information #
   # ------------------- #
+  
   a.journal <- parseJournalInfo(article)
   
   # Check to see if journal already exists in journal.df
@@ -511,6 +512,7 @@ for ( i in 1:numArticles ){
   # ------- #
   # Authors #
   # ------- #
+  
   authorsQuery <- "./MedlineCitation/Article/AuthorList/Author"
   authorsResultSet <- xpathSApply(article, authorsQuery)
 
@@ -647,41 +649,55 @@ SET FOREIGN_KEY_CHECKS = 1;
 ## Queries to see if data is correct
 
 ```{sql connection=dbcon}
-SELECT article_title, journal_name, volume, issue, publication_year, publication_month
+SELECT article_title
+, journal_name
+, volume
+, issue
+, publication_year
+, publication_month
 FROM Article AS A
-     JOIN Journal_Issue AS JI
-     ON A.art_id = JI.issue_id
-     JOIN Journal AS J
-     ON JI.journal_id = J.j_id;
+JOIN Journal_Issue AS JI
+ON A.art_id = JI.issue_id
+JOIN Journal AS J
+ON JI.journal_id = J.j_id;
 ```
 
 ```{sql connection=dbcon}
-SELECT SUBSTRING(article_title, 1, 75) AS ArticleTitle, COUNT(art_aut_id) As AuthorCount
+SELECT SUBSTRING(article_title, 1, 75) AS ArticleTitle
+, COUNT(art_aut_id) As AuthorCount
 FROM Article AS A
-     JOIN Article_Author_Junction AS AJ
-     ON A.art_id = AJ.article_id
+JOIN Article_Author_Junction AS AJ
+ON A.art_id = AJ.article_id
 GROUP BY article_title;
 ```
+
 ```{sql connection=dbcon}
-SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName, 
-       COUNT(AJ.author_id) AS ArticleCount
+SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName
+, COUNT(AJ.author_id) AS ArticleCount
 FROM Article_Author_Junction AS AJ
-     JOIN Author AS AR
-     ON AJ.author_id = AR.aut_id
+JOIN Author AS AR
+ON AJ.author_id = AR.aut_id
 GROUP BY AR.aut_id
 ORDER BY ArticleCount DESC;
 ```
+
 ```{sql connection=dbcon}
-SELECT SUBSTRING(article_title, 1, 50) AS ArticleTitle, journal_name,
-       volume, issue, publication_year, publication_month,
-       H.pub_status, H.year, H.month, H.day
+SELECT SUBSTRING(article_title, 1, 50) AS ArticleTitle
+, journal_name
+, volume
+, issue
+, publication_year
+, publication_month
+, H.pub_status
+, H.year
+, H.month, H.day
 FROM Article AS A
-     JOIN Journal_Issue AS JI
-     ON A.art_id = JI.issue_id
-     JOIN Journal AS J
-     ON JI.journal_id = J.j_id
-     JOIN History AS H
-     ON H.article_id = A.art_id
+JOIN Journal_Issue AS JI
+ON A.art_id = JI.issue_id
+JOIN Journal AS J
+ON JI.journal_id = J.j_id
+JOIN History AS H
+ON H.article_id = A.art_id
 WHERE A.art_id = 16;
 ```
 
@@ -691,33 +707,148 @@ SELECT * FROM Article;
 
 
 ```{sql connection=dbcon}
-SELECT article_title, Abstract.*
+SELECT article_title
+, Abstract.*
 FROM Article
-     JOIN Abstract
-     ON Article.art_id = Abstract.article_id
+JOIN Abstract
+ON Article.art_id = Abstract.article_id
 WHERE Article.art_id = 3;
 ```
 
 ```{sql connection=dbcon}
-SELECT article_title, Author.*
+SELECT article_title
+, Author.*
 FROM Article
-     JOIN Article_Author_Junction
-     ON Article.art_id = Article_Author_Junction.article_id
-     JOIN Author
-     ON Article_Author_Junction.author_id = Author.aut_id
+JOIN Article_Author_Junction
+ON Article.art_id = Article_Author_Junction.article_id
+JOIN Author
+ON Article_Author_Junction.author_id = Author.aut_id
 WHERE Article.art_id = 3;
 ```
-
 
 # Create Star/Snowflake Schema
 
 ## (20 pts) Create and populate a star schema with dimension and transaction fact tables. Each row in the fact table will represent one article. Include the image of an updated ERD that contains the fact table and any additional required dimension tables. Populate the star schema in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
 
+## Star Schema - factTable and authorTable
+
+![](Practicum2 - Star Schema.png "Practicum2 - Star Schema") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1248%2C-504%2C6656%2C3144%2CgMo3rIrSBrSc&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+
+```{r}
+
+# TODO: let me know your thoughts on this fact table design. I did it with a transactional focus.
+
+factTable <- dbGetQuery(dbcon, 'SELECT a.art_id as article_id
+                                , a.article_title
+                                , a.pub_model
+                                , j.journal_name
+                                , j.issn
+                                , j.issn_type
+                                , j.iso_abbreviation
+                                , j.journal_country
+                                , ji.volume 
+                                , ji.issue
+                                , ji.publication_year as ji_pub_year
+                                , ji.publication_month as ji_pub_month
+                                , h.pub_status
+                                , h.year as pub_year
+                                , h.month as pub_month
+                                , h.day as pub_day
+                                FROM Article a
+                                JOIN Journal_Issue ji
+                                ON a.journal_issue_id = ji.issue_id
+                                JOIN Journal j
+                                ON j.j_id = ji.journal_id
+                                JOIN History h
+                                ON a.art_id = h.article_id;
+                                ')
+
+factTable
+```
+
+```{r}
+
+# TODO: and here is the helper author table
+
+authorTable <- dbGetQuery(dbcon, 'SELECT aaj.article_id
+                                  , a.author_last_name as last_name
+                                  , a.author_fore_name as fore_name
+                                  , a.author_initials as initials
+                                  FROM Article_Author_Junction aaj
+                                  JOIN Author a
+                                  ON a.aut_id = aaj.author_id;
+                                  ')
+
+authorTable
+```
+
+```{r}
+
+# TODO: mush mash of everything for funzies - not desired so might delete (felt cute, might delete later)
+
+factTable <- dbGetQuery(dbcon, 'SELECT *
+                                FROM Article AS A
+                                JOIN Article_Author_Junction as AAJ
+                                ON AAJ.article_id = A.art_id
+                                JOIN Author AS Au
+                                ON Au.aut_id = AAJ.author_id
+                                JOIN Journal_Issue AS JI
+                                ON A.art_id = JI.issue_id
+                                JOIN Journal AS J
+                                ON JI.journal_id = J.j_id
+                                JOIN History AS H
+                                ON H.article_id = A.art_id')
+factTable
+```
+
 ## (20 pts) In the same schema as the previous step, create and populate a summary fact table that represents number of articles per time period (quarter, year) by author and by journal. Include the image of an updated ERD that contains the fact table. Populate the fact table in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
+
+## Summary Fact Table - articlesPTD
+
+```{r}
+
+# TODO: I think I interpreted this question correctly? Question mark?
+
+articlesPTD <- dbGetQuery(dbcon, 'SELECT au.author_last_name
+                                , au.author_fore_name
+                                , j.journal_name
+                                , COUNT(a.art_id) as article_count
+                                , h.year as pub_year
+                                , CASE WHEN h.month >= 1 and h.month <= 3 THEN 1
+                                WHEN h.month >= 4 and h.month <= 6 THEN 2
+                                WHEN h.month >= 7 and h.month <= 9 THEN 3
+                                WHEN h.month >= 10 and h.month <= 12 THEN 4
+                                END as pub_quarter
+                                FROM Article a
+                                JOIN Article_Author_Junction aaj
+                                ON a.art_id = aaj.article_id
+                                JOIN Author au
+                                ON aaj.author_id = au.aut_id
+                                JOIN Journal_Issue ji
+                                ON a.journal_issue_id = ji.issue_id
+                                JOIN Journal j
+                                ON ji.journal_id = j.j_id
+                                JOIN History h
+                                ON a.art_id = h.article_id
+                                GROUP BY pub_year, pub_quarter, journal_name, author_last_name, author_fore_name
+                                ORDER BY pub_year, pub_quarter asc;
+                                ')
+
+articlesPTD
+```
 
 # Explore and Mine Data
 
 ## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
+
+```{r}
+
+# TODO: What questions do we want to answer?
+# - Are there seasonal patterns for certain publications?
+# - 
+
+```
+
 
 ```{r}
 dbDisconnect(dbcon)
@@ -739,6 +870,8 @@ dbDisconnect(dbcon)
   # - Done. I also loaded the history table with information between the <history> tags. Was pretty easy, so just went with it. If we decide to remove, can do so. I did not populate with pub_date of the journal issue; can do if you think we need to.
   
 # TODO: Do we need to use schemas to separate the different tables?
+  # - I combined most of it except for the author information in the first fact table
+  # - Then in the second one it included the authors (per the question)
 
 # Less Important TODO
   -----------------------------------------
