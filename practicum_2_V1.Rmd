@@ -881,7 +881,10 @@ articlesPTD
 
 # TODO: What questions do we want to answer?
 # - Are there seasonal patterns for certain publications?
-# - 
+# - Should we look at how journal country impacts things?
+# - What about the number of authors a journal article has?
+# - Any interest in looking at time from article is received to when it is published?
+# - What about if there is any link between published date and if it is revised?
 
 ```
 
