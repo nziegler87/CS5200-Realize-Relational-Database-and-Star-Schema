@@ -327,8 +327,8 @@ parseJournalIssueInfo <- function(journal_id, article_node){
   
   ## If it is not saved as Medline, parse out Year and Month
   else{
-    journalIssueYear <- NA
-    journalIssueMonth <- NA
+    journalIssueYear <- 0
+    journalIssueMonth <- 0
     
     # Because not every article has a pub month, using a for loop with xmlName to extract the data
     
@@ -672,11 +672,46 @@ GROUP BY article_title;
 ```
 
 ```{sql connection=dbcon}
+SELECT A.article_title, JO.journal_name, J.publication_year, J.publication_month
+FROM Article AS A
+JOIN Journal_Issue AS J
+ON A.journal_issue_id = J.issue_id
+JOIN Journal AS JO
+ON J.journal_id = JO.j_id
+WHERE J.journal_id = 4 AND J.publication_year = 2012
+ORDER BY J.publication_month ASC;
+```
+
+```{sql connection=dbcon}
+SELECT AR.aut_id, CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName,
+       A.article_title, JO.journal_name, J.publication_year, J.publication_month
+FROM Article_Author_Junction AS AJ
+JOIN Author AS AR
+ON AJ.author_id = AR.aut_id
+JOIN Article AS A
+ON A.art_id = AJ.article_id
+JOIN Journal_Issue AS J
+ON A.journal_issue_id = J.issue_id
+JOIN Journal AS JO
+ON J.journal_id = JO.j_id
+WHERE AR.aut_id = 3 AND J.publication_year = 2012
+ORDER BY J.publication_month ASC;
+```
+
+
+```{sql connection=dbcon}
 SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName
 , COUNT(AJ.author_id) AS ArticleCount
 FROM Article_Author_Junction AS AJ
 JOIN Author AS AR
 ON AJ.author_id = AR.aut_id
+JOIN Article AS A
+ON A.art_id = AJ.article_id
+JOIN Journal_Issue AS J
+ON A.journal_issue_id = J.issue_id
+JOIN Journal AS JO
+ON J.journal_id = JO.j_id
+WHERE J.publication_year = 2012 AND (J.publication_month >= 10 AND J.publication_month <= 12)
 GROUP BY AR.aut_id
 ORDER BY ArticleCount DESC;
 ```
@@ -702,7 +737,7 @@ WHERE A.art_id = 16;
 ```
 
 ```{sql connection=dbcon}
-SELECT * FROM Article;
+SELECT * FROM Author;
 ```
 
 
@@ -764,11 +799,13 @@ factTable <- dbGetQuery(dbcon, 'SELECT a.art_id as article_id
                                 ')
 
 factTable
+
 ```
 
 ```{r}
 
 # TODO: and here is the helper author table
+# TODO: I think we should have article and journal tables as well?
 
 authorTable <- dbGetQuery(dbcon, 'SELECT aaj.article_id
                                   , a.author_last_name as last_name
@@ -804,7 +841,6 @@ factTable
 ## (20 pts) In the same schema as the previous step, create and populate a summary fact table that represents number of articles per time period (quarter, year) by author and by journal. Include the image of an updated ERD that contains the fact table. Populate the fact table in R. When building the schema, look a head to Part 3 as the schema is dependent on the eventual OLAP queries.
 
 ## Summary Fact Table - articlesPTD
-
 ```{r}
 
 # TODO: I think I interpreted this question correctly? Question mark?
