@@ -58,7 +58,7 @@ CREATE TABLE Author (
   aut_id INT PRIMARY KEY AUTO_INCREMENT,
   author_last_name VARCHAR(255) NOT NULL,
   author_fore_name VARCHAR(255) NOT NULL,
-  author_initials VARCHAR(255) NOT NULL,
+  author_initials VARCHAR(255) NOT NULL
 );
 ```
 
@@ -327,8 +327,10 @@ parseJournalIssueInfo <- function(journal_id, article_node){
   
   ## If it is not saved as Medline, parse out Year and Month
   else{
-    journalIssueYear <- 0
-    journalIssueMonth <- 0
+    
+    # if month doesn't exist, set it equal to 1
+    journalIssueYear <- 1
+    journalIssueMonth <- 1
     
     # Because not every article has a pub month, using a for loop with xmlName to extract the data
     
