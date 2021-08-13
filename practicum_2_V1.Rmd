@@ -361,7 +361,7 @@ parseJournalIssueInfo <- function(journal_id, article_node){
 ```
 
 ```{r}
-parseArticleInfo <- function(journal_id, article_node){
+parseArticleInfo <- function(issue_id, article_node){
   # Article Title
   articleTitleQuery <- "./MedlineCitation/Article/ArticleTitle"
   articleTitle <- xpathSApply(article_node, articleTitleQuery, xmlValue)
@@ -370,7 +370,7 @@ parseArticleInfo <- function(journal_id, article_node){
   pubModelQuery <- "./MedlineCitation/Article/@PubModel"
   pubModel <- xpathSApply(article_node, pubModelQuery)
   
-  an.article <- data.frame(articleTitle, journal_id, pubModel)
+  an.article <- data.frame(articleTitle, issue_id, pubModel)
   
   return(an.article)
 }
@@ -497,7 +497,7 @@ for ( i in 1:numArticles ){
   # Articles #
   # -------- #
   
-  an.article <- parseArticleInfo(journalID, article)
+  an.article <- parseArticleInfo(issueID, article)
   
   articleID <- rowExists(an.article, article.df)
   
