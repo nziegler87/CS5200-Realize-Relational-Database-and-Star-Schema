@@ -209,8 +209,31 @@ dim_quarter.df
 # author info for each quarter
 ```
 
+```{r}
+numArticlesPublishedByJournal <- function(journal_id, year, quarter){
+  # if quarter information isn't provided, pull just based on year
+  if ( quarter = 0 ){
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, ' AND JI.publication_year = ', year);
+  } else {
+    sqlStatement <- paste0()
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)
+  return(count)
+}
+```
 
+```{r}
+numArticlesPublishedByJournal(3,2013)
+```
 
+# Get the number of articles given a journal number and year
 ```{sql connection=dbcon}
 SELECT COUNT(ART.art_id)
 FROM Journal AS J
@@ -218,6 +241,25 @@ JOIN Journal_Issue AS JI
 ON JI.journal_id = J.j_id
 JOIN Article AS ART
 ON ART.journal_issue_id = JI.issue_id
-WHERE J.j_id = 1 AND JI.publication_year=2012;
+WHERE J.j_id = 3 AND JI.publication_year=2013;
+```
+
+# get the number of article revisions for a journal in a year
+```{sql connection=dbcon}
+SELECT COUNT(ART.art_id)
+FROM Journal AS J
+JOIN Journal_Issue AS JI
+ON JI.journal_id = J.j_id
+JOIN Article AS ART
+ON ART.journal_issue_id = JI.issue_id
+JOIN History AS H
+ON ART.art_id = H.article_id
+WHERE J.j_id = 1 AND JI.publication_year=2013 AND H.pub_status="revised";
+```
+
+# get the average time from submission to publication
+```{r}
+# retrieve list of article ids
+# 
 ```
 
