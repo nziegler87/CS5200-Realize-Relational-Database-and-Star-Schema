@@ -23,25 +23,6 @@ dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host,
                    port = db_port, user = db_user, password = db_password)
 ```
 
-## Building query to  extract publication date
-```{sql connection=dbcon}
-SELECT CONCAT(JI.publication_year,"-",JI.publication_month,"-","01") AS PublicationDate
-FROM Article
-JOIN Journal_Issue AS JI
-ON Article.journal_issue_id = JI.issue_id
-WHERE art_id = 1;
-```
-
-## Building query to extract date received
-### Can replace "recieved" with any other pub status
-```{sql connection=dbcon}
-SELECT CONCAT(History.year, "-", History.month, "-", History.day) AS DateReceived
-FROM Article
-JOIN History
-ON Article.art_id = History.article_id
-WHERE pub_status = "received" AND art_id = 1;
-```
-
 ## Function to return publication date of a journal as a date object
 ```{r}
 getPublicationDate <- function(article_id){
@@ -77,176 +58,18 @@ getHistoryDate <- function(article_id, history_event){
   return(as.Date(as.character(date), format))}
 ```
 
-# Just fiddling with the difftime function
 ```{r}
-received_date <- getHistoryDate(1, "received")
-pub_date <- getPublicationDate(1)
-difference <- difftime(pub_date, received_date, units = "weeks")
-received_date
-pub_date
-difference
-```
-
-# Fiddling with creating a df that shows difference between when an article was received and then published
-```{r}
-pub_information <- data.frame(art_id = character(),
-                              pub_date = as.Date(character()),
-                              received_date = as.Date(character()),
-                              date_diff = integer(),
-                              weeks_dff = integer(),
-                              stringsAsFactors = FALSE)
-
-for ( i in 1:19 ){
-  pub_date <- getPublicationDate(i)
-  received_date <- getHistoryDate(i, "received")
-
-  if ( is.na(received_date) ) {
-    days_difference <- 0
-    weeks_difference <- 0
-  } else {
-    days_difference <- difftime(pub_date, received_date, units = "days")
-    weeks_difference <- difftime(pub_date, received_date, units = "weeks")
-
+daysToPub <- function(article_id){
+  received_date <- getHistoryDate(article_id, "received")
+  pub_date <- getPublicationDate(article_id)
+  if ( is.na(received_date) ){
+    difference <- 0
+  } else{
+    difference <- difftime(pub_date, received_date, units = "days")
   }
-  
-  new_entry <- data.frame(i, pub_date, received_date, days_difference, weeks_difference)
-  
-  pub_information[i,] <- new_entry
+
+  return(as.numeric(difference))
 }
-
-pub_information
-```
-
-
-```{r}
-publication_years
-```
-
-
-# Draft of a summary table
-
-```{r}
-# Create the data frames
-dim_year.df <- data.frame(dim_year_key = integer(),
-                          dim_year_description = character(),
-                          stringsAsFactors = FALSE)
-
-# extract all possible years from the publication information
-publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year AS year FROM Journal_Issue")
-publication_years <- publication_years[,1]
-
-# load the data frame
-dim_year.df[1,] <- data.frame(0, "ALL")
-
-for ( i in 1:length(publication_years) ){
-  row_number <- nrow(dim_year.df) + 1
-  dim_year.df[row_number,] <- data.frame(i, publication_years[i])
-}
-
-
-dim_quarter.df <- data.frame(dim_quarter_key = integer(),
-                             dim_quarter_description = character(),
-                             stringsAsFactors = FALSE)
-
-quarters_list = c("ALL", "Q1", "Q2", "Q3", "Q4")
-for ( i in 1:length(quarters) ){
-  dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
-}
-
-
-dim_author.df <- data.frame(dim_author_key = integer(),
-                            dim_author_last_name = character(),
-                            dim_author_fore_name = character(),
-                            dim_author_initials = character(),
-                            stringsAsFactors = FALSE)
-
-dim_author.df[1,] <- data.frame(0, "ALL", "ALL", "ALL")
-
-author_info_from_db <- dbGetQuery(dbcon, "SELECT Author.aut_id AS dim_author_key, 
-                                          Author.author_last_name AS dim_author_last_name, 
-                                          Author.author_fore_name AS dim_author_fore_name, 
-                                          Author.author_initials AS dim_author_initials
-                                          FROM Author")
-dim_author.df <- rbind(dim_author.df, author_info_from_db)
-
-
-
-dim_journal.df <- data.frame(dim_journal_key = integer(),
-                             dim_journal_name = integer(),
-                             dim_journal_country = integer(),
-                             stringsAsFactors = FALSE)
-
-dim_journal.df[1,] <- data.frame(0, "ALL", "ALL")
-
-journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key, 
-                                           journal_name AS dim_journal_name,
-                                           journal_country AS dim_journal_country
-                                           FROM Journal;")
-
-dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
-
-
-fact_table.df <- data.frame(fact_id = integer(),
-                           journal_id = integer(),
-                           author_id = integer(),
-                           dim_year = integer(),
-                           dim_qurter = integer(),
-                           num_articles_published = integer(),
-                           avg_days_to_submission = integer(),
-                           num_articles_with_revisions = integer(),
-                          stringsAsFactors = FALSE)
-```
-
-```{r}
-dim_author.df
-dim_journal.df
-dim_quarter.df
-```
-
-```{r}
-```
-
-
-# populating the fact table
-```{r}
-
-# loop through each journal, except the first "ALL"
-for ( i in 2:nrow(dim_journal.df) ){
-  # loup through each quarter, including the "ALL" quarter to get yearly totals
-  for ( j in 1:nrow(dim_quarter.df) ) {
-    # loop through eahc year, except the first "ALL"
-    for ( k in 2:nrow(dim_year.df) ){
-      
-      journal_id <- dim_journal.df[i,]$dim_journal_key
-      
-      author_id <- 0
-      
-      year <- dim_year.df[k,]$dim_year_key
-      
-      year_description <- dim_year.df[k,]$dim_year_description
-      
-      quarter <- dim_quarter.df[j,]$dim_quarter_key
-      
-      num_published <- numArticlesPublishedByJournal(journal_id, year_description, quarter)
-      
-      days_to_pub <- 0
-      
-      num_revisions <- numArticlesRevisedByJournal(journal_id, year_description, quarter)
-      
-      pk <- nrow(fact_table.df) + 1
-      
-      fact_table.df[pk,] <- data.frame(pk, journal_id, author_id, year, 
-                                       quarter, num_published, days_to_pub, 
-                                       num_revisions, stringsAsFactors = FALSE)
-    }
-  }
-}
-
-
-# author info for the entire year
-# author info for each quarter
-
-
 ```
 
 ```{r}
@@ -434,6 +257,134 @@ articleIDsPublishedByJournal <- function(journal_id, year, quarter){
   if ( nrow(count) == 0 ) return(NA)
   return(count$art_id)
 }
+```
+
+# Draft of a summary table
+
+```{r}
+# Create the data frames
+dim_year.df <- data.frame(dim_year_key = integer(),
+                          dim_year_description = character(),
+                          stringsAsFactors = FALSE)
+
+# extract all possible years from the publication information
+publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year AS year FROM Journal_Issue")
+publication_years <- publication_years[,1]
+
+# load the data frame
+dim_year.df[1,] <- data.frame(0, "ALL")
+
+for ( i in 1:length(publication_years) ){
+  row_number <- nrow(dim_year.df) + 1
+  dim_year.df[row_number,] <- data.frame(i, publication_years[i])
+}
+
+
+dim_quarter.df <- data.frame(dim_quarter_key = integer(),
+                             dim_quarter_description = character(),
+                             stringsAsFactors = FALSE)
+
+quarters_list = c("ALL", "Q1", "Q2", "Q3", "Q4")
+for ( i in 1:length(quarters_list) ){
+  dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
+}
+
+
+dim_author.df <- data.frame(dim_author_key = integer(),
+                            dim_author_last_name = character(),
+                            dim_author_fore_name = character(),
+                            dim_author_initials = character(),
+                            stringsAsFactors = FALSE)
+
+dim_author.df[1,] <- data.frame(0, "ALL", "ALL", "ALL")
+
+author_info_from_db <- dbGetQuery(dbcon, "SELECT Author.aut_id AS dim_author_key, 
+                                          Author.author_last_name AS dim_author_last_name, 
+                                          Author.author_fore_name AS dim_author_fore_name, 
+                                          Author.author_initials AS dim_author_initials
+                                          FROM Author")
+dim_author.df <- rbind(dim_author.df, author_info_from_db)
+
+
+
+dim_journal.df <- data.frame(dim_journal_key = integer(),
+                             dim_journal_name = integer(),
+                             dim_journal_country = integer(),
+                             stringsAsFactors = FALSE)
+
+dim_journal.df[1,] <- data.frame(0, "ALL", "ALL")
+
+journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key, 
+                                           journal_name AS dim_journal_name,
+                                           journal_country AS dim_journal_country
+                                           FROM Journal;")
+
+dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
+
+
+fact_table.df <- data.frame(fact_id = integer(),
+                           journal_id = integer(),
+                           author_id = integer(),
+                           dim_year = integer(),
+                           dim_qurter = integer(),
+                           num_articles_published = integer(),
+                           avg_days_to_submission = integer(),
+                           num_articles_with_revisions = integer(),
+                          stringsAsFactors = FALSE)
+```
+
+# populating the fact table
+```{r}
+
+# loop through each journal, except the first "ALL"
+for ( i in 2:nrow(dim_journal.df) ){
+  # loup through each quarter, including the "ALL" quarter to get yearly totals
+  for ( j in 1:nrow(dim_quarter.df) ) {
+    # loop through each year, except the first "ALL"
+    for ( k in 2:nrow(dim_year.df) ){
+      
+      journal_id <- dim_journal.df[i,]$dim_journal_key
+      
+      author_id <- 0
+      
+      year <- dim_year.df[k,]$dim_year_key
+      
+      year_description <- dim_year.df[k,]$dim_year_description
+      
+      quarter <- dim_quarter.df[j,]$dim_quarter_key
+      
+      num_published <- numArticlesPublishedByJournal(journal_id, year_description, quarter)
+
+      if ( num_published > 0 ){
+        ## days to pub...we are getting reallllly slow here
+        article_list <- articleIDsPublishedByJournal(journal_id, year_description, quarter)
+        day_list <- vector()
+
+        for ( i in length(article_list) ){
+          day_result <- daysToPub(article_list[i])
+          append(day_list, day_result)
+        }
+      days_to_pub <- mean(day_list)
+      } else {
+      days_to_pub <- 0
+      }
+      
+      num_revisions <- numArticlesRevisedByJournal(journal_id, year_description, quarter)
+      
+      pk <- nrow(fact_table.df) + 1
+      
+      fact_table.df[pk,] <- data.frame(pk, journal_id, author_id, year, 
+                                       quarter, num_published, days_to_pub, 
+                                       num_revisions, stringsAsFactors = FALSE)
+    }
+  }
+}
+
+
+# author info for the entire year
+# author info for each quarter
+
+
 ```
 
 
