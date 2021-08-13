@@ -268,7 +268,65 @@ numArticlesPublishedByJournal <- function(journal_id, year, quarter){
 ```
 
 ```{r}
-numArticlesPublishedByJournal(3,2012, 4)
+articleIDsPublishedByJournal <- function(journal_id, year, quarter){
+  # if quarter information isn't provided, pull just based on year
+  if ( quarter == 0 ){
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, ' AND JI.publication_year = ', year);
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 AND JI.publication_month <= 3)');
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 4 AND JI.publication_month <= 6)');
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 7 AND JI.publication_month <= 9)');
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 10 AND JI.publication_month <= 12)');
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)
+  return(count$art_id)
+}
+```
+
+```{r}
+articleIDsPublishedByJournal(4,2012,0)
 ```
 
 # Get the number of articles given a journal number and year
@@ -309,6 +367,8 @@ WHERE J.j_id = 1 AND JI.publication_year=2013 AND H.pub_status="revised";
 # get the average time from submission to publication
 ```{r}
 # retrieve list of article ids
-# 
+
+
 ```
+
 
