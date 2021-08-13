@@ -117,3 +117,107 @@ for ( i in 1:19 ){
 pub_information
 ```
 
+# Draft of a summary table
+
+```{r}
+# Create the data frames
+dim_year.df <- data.frame(dim_year_key = integer(),
+                          dim_year_description = character(),
+                          stringsAsFactors = FALSE)
+
+# extract all possible years from the publication information and history tables
+publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year AS year FROM Journal_Issue")
+history_years <- dbGetQuery(dbcon,"SELECT DISTINCT year AS year FROM History")
+
+# combine and make them a sorted vector for insertion into the data frame
+total_years <- unique(rbind(publication_years, history_years))
+year_list <- sort(as.character(total_years[,1]))
+
+# load the data frame
+dim_year.df[1,] <- data.frame(0, "ALL")
+for ( i in 1:length(year_list) ){
+  row_number <- nrow(dim_year.df) + 1
+  dim_year.df[row_number,] <- data.frame(i, year_list[i])
+}
+
+
+dim_quarter.df <- data.frame(dim_quarter_key = integer(),
+                             dim_quarter_description = character(),
+                             stringsAsFactors = FALSE)
+
+quarters_list = c("ALL", "Q1", "Q2", "Q3", "Q4")
+for ( i in 1:length(quarters) ){
+  dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
+}
+
+
+dim_author.df <- data.frame(dim_author_key = integer(),
+                            dim_author_last_name = character(),
+                            dim_author_fore_name = character(),
+                            dim_author_initials = character(),
+                            stringsAsFactors = FALSE)
+
+dim_author.df[1,] <- data.frame(0, "ALL", "ALL", "ALL")
+
+author_info_from_db <- dbGetQuery(dbcon, "SELECT Author.aut_id AS dim_author_key, 
+                                          Author.author_last_name AS dim_author_last_name, 
+                                          Author.author_fore_name AS dim_author_fore_name, 
+                                          Author.author_initials AS dim_author_initials
+                                          FROM Author")
+dim_author.df <- rbind(dim_author.df, author_info_from_db)
+
+
+
+dim_journal.df <- data.frame(dim_journal_key = integer(),
+                             dim_journal_name = integer(),
+                             dim_journal_country = integer(),
+                             stringsAsFactors = FALSE)
+
+dim_journal.df[1,] <- data.frame(0, "ALL", "ALL")
+
+journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key, 
+                                           journal_name AS dim_journal_name,
+                                           journal_country AS dim_journal_country
+                                           FROM Journal;")
+
+dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
+
+
+fact_table.df <- data.frame(fact_id = integer(),
+                           journal_id = integer(),
+                           author_id = integer(),
+                           dim_year = integer(),
+                           dim_qurter = integer(),
+                           num_articles_published = integer(),
+                           avg_days_to_submission = integer(),
+                           num_articles_with_revisions = integer(),
+                          stringsAsFactors = FALSE)
+```
+
+```{r}
+dim_author.df
+dim_journal.df
+dim_quarter.df
+```
+
+# populating the fact table
+```{r}
+# journal info for the entire year
+# journal info for each quarter
+
+# author info for the entire year
+# author info for each quarter
+```
+
+
+
+```{sql connection=dbcon}
+SELECT COUNT(ART.art_id)
+FROM Journal AS J
+JOIN Journal_Issue AS JI
+ON JI.journal_id = J.j_id
+JOIN Article AS ART
+ON ART.journal_issue_id = JI.issue_id
+WHERE J.j_id = 1 AND JI.publication_year=2012;
+```
+
