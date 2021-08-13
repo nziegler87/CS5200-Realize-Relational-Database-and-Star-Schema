@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(DBI)
+library(RMySQL)
+library(XML)
+library(sqldf)
+library(dplyr)    ## For removing duplicate values in dataframe
+library(stringr)  ## For capitalization
+```
+
+```{r}
+db_user <- "dbadmin"
+db_name <- 'SandboxDB'
+db_password <- "dos8JINT.kras8jaun"
+db_host <- "cs5200-dbs.ctuc7sl6qeau.us-east-2.rds.amazonaws.com"
+db_port <- 3306
+
+dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host, 
+                   port = db_port, user = db_user, password = db_password)
+```
+
+## Building query to  extract publication date
+```{sql connection=dbcon}
+SELECT CONCAT(JI.publication_year,"-",JI.publication_month,"-","01") AS PublicationDate
+FROM Article
+JOIN Journal_Issue AS JI
+ON Article.journal_issue_id = JI.issue_id
+WHERE art_id = 1;
+```
+
+## Building query to extract date received
+### Can replace "recieved" with any other pub status
+```{sql connection=dbcon}
+SELECT CONCAT(History.year, "-", History.month, "-", History.day) AS DateReceived
+FROM Article
+JOIN History
+ON Article.art_id = History.article_id
+WHERE pub_status = "received" AND art_id = 1;
+```
+
+## Function to return publication date of a journal as a date object
+```{r}
+getPublicationDate <- function(article_id){
+  sqlStatement <- paste0('SELECT CONCAT(JI.publication_year,"-",JI.publication_month,"-","01") AS PublicationDate
+                          FROM Article
+                          JOIN Journal_Issue AS JI
+                          ON Article.journal_issue_id = JI.issue_id
+                          WHERE art_id =', article_id)
+  date <- dbGetQuery(dbcon, sqlStatement)
+  
+  if ( nrow(date) == 0 ) return(NA)
+  
+  format = "%Y-%m-%d"
+  return(as.Date(as.character(date), format))
+}
+```
+
+## Function to retrieve date of history event of an article
+### Inputs: an article_id (an int) and a history event (a string)
+```{r}
+getHistoryDate <- function(article_id, history_event){
+  sqlStatement <- paste0('SELECT CONCAT(History.year, "-", History.month, "-", History.day) AS DateReceived
+                          FROM Article
+                          JOIN History
+                          ON Article.art_id = History.article_id
+                          WHERE pub_status ="', history_event, '" AND art_id = ', article_id)
+  date <- dbGetQuery(dbcon, sqlStatement)
+  
+  if ( nrow(date) == 0 ) return(NA)
+
+
+  format = "%Y-%m-%d"
+  return(as.Date(as.character(date), format))}
+```
+
+# Just fiddling with the difftime function
+```{r}
+received_date <- getHistoryDate(1, "received")
+pub_date <- getPublicationDate(1)
+difference <- difftime(pub_date, received_date, units = "weeks")
+received_date
+pub_date
+difference
+```
+
+# Fiddling with creating a df that shows difference between when an article was received and then published
+```{r}
+pub_information <- data.frame(art_id = character(),
+                              pub_date = as.Date(character()),
+                              received_date = as.Date(character()),
+                              date_diff = integer(),
+                              weeks_dff = integer(),
+                              stringsAsFactors = FALSE)
+
+for ( i in 1:19 ){
+  pub_date <- getPublicationDate(i)
+  received_date <- getHistoryDate(i, "received")
+
+  if ( is.na(received_date) ) {
+    days_difference <- 0
+    weeks_difference <- 0
+  } else {
+    days_difference <- difftime(pub_date, received_date, units = "days")
+    weeks_difference <- difftime(pub_date, received_date, units = "weeks")
+
+  }
+  
+  new_entry <- data.frame(i, pub_date, received_date, days_difference, weeks_difference)
+  
+  pub_information[i,] <- new_entry
+}
+
+pub_information
+```
+
