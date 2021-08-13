@@ -212,7 +212,7 @@ dim_quarter.df
 ```{r}
 numArticlesPublishedByJournal <- function(journal_id, year, quarter){
   # if quarter information isn't provided, pull just based on year
-  if ( quarter = 0 ){
+  if ( quarter == 0 ){
     sqlStatement <- paste0('SELECT COUNT(ART.art_id)
                             FROM Journal AS J
                             JOIN Journal_Issue AS JI
@@ -220,17 +220,55 @@ numArticlesPublishedByJournal <- function(journal_id, year, quarter){
                             JOIN Article AS ART
                             ON ART.journal_issue_id = JI.issue_id
                             WHERE J.j_id =', journal_id, ' AND JI.publication_year = ', year);
-  } else {
-    sqlStatement <- paste0()
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 AND JI.publication_month <= 3)');
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 4 AND JI.publication_month <= 6)');
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 7 AND JI.publication_month <= 9)');
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 10 AND JI.publication_month <= 12)');
   }
   
   count <- dbGetQuery(dbcon, sqlStatement)
-  return(count)
+  return(as.numeric(count))
 }
 ```
 
 ```{r}
-numArticlesPublishedByJournal(3,2013)
+numArticlesPublishedByJournal(3,2012, 4)
 ```
 
 # Get the number of articles given a journal number and year
@@ -242,6 +280,17 @@ ON JI.journal_id = J.j_id
 JOIN Article AS ART
 ON ART.journal_issue_id = JI.issue_id
 WHERE J.j_id = 3 AND JI.publication_year=2013;
+```
+
+# get the number of articles in a given journal by year and quarter
+```{sql connection=dbcon}
+SELECT COUNT(ART.art_id)
+FROM Journal AS J
+JOIN Journal_Issue AS JI
+ON JI.journal_id = J.j_id
+JOIN Article AS ART
+ON ART.journal_issue_id = JI.issue_id
+WHERE J.j_id = 3 AND JI.publication_year=2013 AND (JI.publication_month <= 1 AND JI.publication_month >= 3);
 ```
 
 # get the number of article revisions for a journal in a year
