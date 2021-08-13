@@ -14,6 +14,7 @@ library(XML)
 library(sqldf)
 library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
+library(ggplot2)
 ```
 
 ## Connect to AWS
@@ -877,19 +878,133 @@ articlesPTD
 
 # Explore and Mine Data
 
-## (20 pts) Write queries using your data warehouse to explore whether the publications show a seasonal pattern. Look beyond the pattern of number of publications per season. Adjust your fact tables as needed to support your new queries. If you need to update the fact table, document your changes and your reasons why the changes are needed.
+## Global variables
 
 ```{r}
+# getting the size of the article count
+size <- dbGetQuery(dbcon, 'SELECT COUNT(art_id) as art_count FROM Article')
+size <- size$art_count
+```
 
-# TODO: What questions do we want to answer?
-# - Are there seasonal patterns for certain publications?
-# - Should we look at how journal country impacts things?
-# - What about the number of authors a journal article has?
-# - Any interest in looking at time from article is received to when it is published?
-# - What about if there is any link between published date and if it is revised?
+## Trends in seasonality
+
+```{r}
+# adorning the bar chart
+barChart <- ggplot(data = xx, aes(fille = condition, x = years, y = incidents, fill = condition)) + geom_bar(stat = "identity", position = "dodge") + ggtitle("Trends in seasonality")
+
+print(barChart)
+```
+
+## Trends in seasonality based on journal country
+
+```{r}
+# pulling the data together into a data frame
+xx <- dbGetQuery(dbcon,'')
+
+#initializing the data
+condition <- 
+years <- 
+incidents <- 
+
+# adorning the bar chart
+barChart <- ggplot(data = xx, aes(fille = condition, x = years, y = incidents, fill = condition)) + geom_bar(stat = "identity", position = "dodge") + ggtitle("Trends in seasonality based on journal country")
+
+print(barChart)
+```
+
+## Trends in duration until publication
+
+```{r}
+# Function to return publication date of a journal as a date object
+getPublicationDate <- function(article_id) {
+  
+  # defining the sql statement
+  sqlStatement <- paste0('SELECT CONCAT(JI.publication_year,"-"
+                          ,JI.publication_month,"-","01") AS PublicationDate
+                          FROM Article
+                          JOIN Journal_Issue AS JI
+                          ON Article.journal_issue_id = JI.issue_id
+                          WHERE art_id =', article_id)
+  date <- dbGetQuery(dbcon, sqlStatement)
+  
+  # looking for edge cases and defining them as NA
+  if ( nrow(date) == 0 ) return(NA)
+  
+  return(as.Date(as.character(date), "%Y-%m-%d"))
+}
+```
+
+```{r}
+# Function to retrieve date of history event of an article
+getHistoryDate <- function(article_id, history_event) {
+  
+  # defining the sql statement
+  sqlStatement <- paste0('SELECT CONCAT(History.year, "-", History.month
+                          , "-", History.day) AS DateReceived
+                          FROM Article
+                          JOIN History
+                          ON Article.art_id = History.article_id
+                          WHERE pub_status ="', history_event, '" AND art_id = ', article_id)
+  date <- dbGetQuery(dbcon, sqlStatement)
+  
+  # looking for edge cases and defining them as NA
+  if ( nrow(date) == 0 ) return(NA)
+  
+  return(as.Date(as.character(date), "%Y-%m-%d"))
+}
 
 ```
 
+```{r}
+# testing the functions together to get the date difference in weeks
+received_date <- getHistoryDate(1, "received")
+pub_date <- getPublicationDate(1)
+difference <- difftime(pub_date, received_date, units = "weeks")
+
+received_date
+pub_date
+difference
+```
+
+
+```{r}
+# defining the new data frame
+pub_information <- data.frame(art_id = character(),
+                              pub_date = as.Date(character()),
+                              received_date = as.Date(character()),
+                              date_diff = integer(),
+                              weeks_dff = integer(),
+                              stringsAsFactors = FALSE)
+
+# iterating over the entire list
+for ( i in 1:size ){
+  pub_date <- getPublicationDate(i)
+  received_date <- getHistoryDate(i, "received")
+
+  # looking at edge cases and defining a standard 0
+  if ( is.na(received_date) ) {
+    days_difference <- 0
+    weeks_difference <- 0
+  
+  # running the calc on normal cases  
+  } else {
+    days_difference <- difftime(pub_date, received_date, units = "days")
+    weeks_difference <- difftime(pub_date, received_date, units = "weeks")
+  }
+  
+  # putting the data into the data frame
+  pub_information[i,] <- data.frame(i, pub_date, received_date, days_difference, weeks_difference)
+}
+
+pub_information
+```
+
+```{r}
+# adorning the bar chart
+barChart <- ggplot(data = pub_information, aes(x = art_id, y = weeks_dff))
+
+print(barChart)
+```
 
 ```{r}
 dbDisconnect(dbcon)
