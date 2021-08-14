@@ -1151,7 +1151,8 @@ dim_year.df[1,] <- data.frame(0, "ALL")
 # Load the data frame
 for ( i in 1:length(publication_years) ) {
   row_number <- nrow(dim_year.df) + 1
-  dim_year.df[row_number,] <- data.frame(i, publication_years[i])
+  dim_year.df[row_number,] <- data.frame(i, publication_years[i]) 
+  # TODO: this is throwing me an error so I can't move forward T_T
 }
 
 ```
@@ -1299,6 +1300,8 @@ size <- size$art_count
 ## Trends in seasonality
 
 ```{r}
+#TODO: use the summary table to make this visualization
+
 # setting up the variables
 x_axis <- as.numeric(pub_information$art_id)
 y_axis <- as.numeric(pub_information$weeks_dff)
