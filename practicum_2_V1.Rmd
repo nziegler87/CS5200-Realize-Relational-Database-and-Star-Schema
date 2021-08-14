@@ -32,6 +32,26 @@ dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host,
 ```
 
 ```{r}
+killDbConnections <- function () {
+
+  all_cons <- dbListConnections(MySQL())
+
+  print(all_cons)
+
+  for(con in all_cons)
+    +  dbDisconnect(con)
+
+  print(paste(length(all_cons), " connections killed."))
+
+}
+```
+
+```{r}
+#killDbConnections()
+```
+
+
+```{r}
 # View tables in the database
 dbListTables(dbcon)
 ```
@@ -1136,6 +1156,7 @@ articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
 }
 ```
 
+
 ### Set up dimensions for summary table
 
 ```{r}
@@ -1146,8 +1167,8 @@ dim_year.df <- data.frame(dim_year_key = integer(),
 
 # Extract all possible years from the publication information
 publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year 
-                                AS year 
-                                FROM Journal_Issue")
+                                        AS year 
+                                        FROM Journal_Issue")
 publication_years <- publication_years[,1]
 
 # Define the ALL
@@ -1157,7 +1178,6 @@ dim_year.df[1,] <- data.frame(0, "ALL")
 for ( i in 1:length(publication_years) ) {
   row_number <- nrow(dim_year.df) + 1
   dim_year.df[row_number,] <- data.frame(i, publication_years[i]) 
-  # TODO: this is throwing me an error so I can't move forward T_T
 }
 
 ```
