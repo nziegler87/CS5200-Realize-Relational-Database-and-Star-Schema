@@ -15,6 +15,7 @@ library(sqldf)
 library(dplyr)    ## For removing duplicate values in dataframe
 library(stringr)  ## For capitalization
 library(ggplot2)
+options(encoding = "UTF-8") 
 ```
 
 ## Connect to AWS
@@ -436,7 +437,7 @@ journal.df <- data.frame(j_id = integer(),
 fn <- "pubmed_sample.xml"
 
 # Reading XML file and parse into DOM
-xmlDOM <- xmlParse(file = fn) 
+xmlDOM <- xmlParse(file = fn, encoding="UTF-8") 
 
 # gGt root node 
 r <- xmlRoot(xmlDOM) 
@@ -602,6 +603,10 @@ for ( i in 1:numArticles ){
 ```
 
 # Upload Data
+
+```{r}
+author.df
+```
 
 ## Prepare Data: Author
 
