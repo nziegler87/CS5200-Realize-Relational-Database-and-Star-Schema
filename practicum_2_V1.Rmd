@@ -1156,6 +1156,36 @@ articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
 }
 ```
 
+```{r}
+# Function to find the article IDs associated with each journal
+articleAuthors <- function(article_id) {
+  
+    sqlStatement <- paste0('SELECT COUNT()
+                            FROM Article AS ART
+                            JOIN Author AS AU
+                            ON ART.article_id = AU.aut_id
+                            WHERE ART.article_id = ', article_id);
+    
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 
+                           AND JI.publication_month <= 3)');
+    
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)
+  if ( nrow(count) == 0 ) return(NA)
+  return(count$art_id)
+}
+```
+
 
 ### Set up dimensions for summary table
 
@@ -1255,13 +1285,84 @@ fact_table.df <- data.frame(fact_id = integer(),
 
 fact_table.df
 ```
+
+```{r}
+avgDaysToPub <- function(article_list) {
+  
+  total <- 0
+  size <- length(article_list)
+  
+  if ( size == 1 ) { 
+    return (daysToPub(article_list[1]))
+  } else {
+    
+    # else iterating over the list
+    for ( i in size ) {
+      day_result <- daysToPub(article_list[i])
+      total <- total + day_result
+    }
+  
+    return(total / size)
+  }
+}
+
+```
+
+```{r}
+# just for testing
+article_list <- articleIDsPublishedByJournal(
+          4, 2012, 1)
+
+article_list
+length(article_list)
+#length(article_list)
+daysToPub(article_list[1])
+
+avgDaysToPub(article_list)
+```
+
+```{r}
+avgDaysToPub <- function(article_list) {
+  
+  total <- 0
+  size <- length(article_list)
+  
+  if ( size == 1 ) { 
+    return (daysToPub(article_list[1]))
+  } else {
+    
+    # else iterating over the list
+    for ( i in size ) {
+      day_result <- daysToPub(article_list[i])
+      total <- total + day_result
+    }
+  
+    return(total / size)
+  }
+}
+
+```
+
+```{r}
+# just for testing
+article_list <- articleIDsPublishedByJournal(
+          4, 2012, 1)
+
+article_list
+length(article_list)
+#length(article_list)
+daysToPub(article_list[1])
+
+avgDaysToPub(article_list)
+```
+
 ```{r}
 # Populate the data for the summary table
 
 # loop through each journal, except the first "ALL"
 for ( i in 2:nrow(dim_journal.df) ) {
   
-  # lo0p through each quarter, including the "ALL" quarter to get yearly totals
+  # loop through each quarter, including the "ALL" quarter to get yearly totals
   for ( j in 1:nrow(dim_quarter.df) ) {
     
     # loop through each year, except the first "ALL"
@@ -1275,27 +1376,17 @@ for ( i in 2:nrow(dim_journal.df) ) {
       num_published <- numArticlesPublishedByJournal(
         journal_id, year_description, quarter)
 
-      if ( num_published > 0 ) {
-        
-        ## days to pub...we are getting reallllly slow here
-        article_list <- articleIDsPublishedByJournal(
+      # get average days to publish
+      article_list <- articleIDsPublishedByJournal(
           journal_id, year_description, quarter)
-        day_list <- vector()
-
-        for ( i in length(article_list) ) {
-          day_result <- daysToPub(article_list[i])
-          append(day_list, day_result)
-        }
-        
-      days_to_pub <- mean(day_list)
-      
+      if ( is.na(article_list) ) {
+        days_to_pub <- 0
       } else {
-        
-      days_to_pub <- 0
-      
+        days_to_pub <- avgDaysToPub(article_list)
       }
       
-      num_revisions <- numArticlesRevisedByJournal(journal_id, year_description, quarter)
+      num_revisions <- numArticlesRevisedByJournal(
+        journal_id, year_description, quarter)
       pk <- nrow(fact_table.df) + 1
       fact_table.df[pk,] <- data.frame(pk, journal_id, author_id, year, 
                                        quarter, num_published, days_to_pub, 
