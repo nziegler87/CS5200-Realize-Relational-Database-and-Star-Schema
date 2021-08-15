@@ -2138,7 +2138,8 @@ CREATE TABLE DIM_Year (
   dim_year_key INT PRIMARY KEY,
   dim_year_description VARCHAR(200) NOT NULL,
   
-  INDEX(dim_year_key)
+  INDEX (dim_year_key),
+  INDEX (dim_year_description)
 );
 ```
 
@@ -2155,7 +2156,8 @@ CREATE TABLE DIM_Quarter (
   dim_quarter_key INT PRIMARY KEY,
   dim_quarter_description VARCHAR(200) NOT NULL,
   
-  INDEX(dim_quarter_key)
+  INDEX (dim_quarter_key),
+  INDEX (dim_quarter_description)
 );
 ```
 
@@ -2174,7 +2176,10 @@ CREATE TABLE DIM_Author (
   dim_author_fore_name VARCHAR(200) NOT NULL,
   dim_author_initials VARCHAR(200) NOT NULL,
   
-  INDEX(dim_author_key)
+  INDEX (dim_author_key),
+  INDEX (dim_author_last_name),
+  INDEX (dim_author_fore_name),
+  INDEX (dim_author_initials)
 );
 ```
 
@@ -2192,7 +2197,9 @@ CREATE TABLE DIM_Journal (
   dim_journal_name VARCHAR(200) NOT NULL,
   dim_journal_country VARCHAR(200) NOT NULL,
   
-  INDEX(dim_journal_key)
+  INDEX (dim_journal_key),
+  INDEX (dim_journal_name),
+  INDEX (dim_journal_country)
 );
 ```
 
@@ -2223,7 +2230,10 @@ CREATE TABLE Summary_Fact_Table (
   INDEX (journal_id),
   INDEX (author_id),
   INDEX (dim_year),
-  INDEX (dim_quarter)
+  INDEX (dim_quarter),
+  INDEX (num_articles_published),
+  INDEX (avg_days_to_submission),
+  INDEX (num_articles_with_revisions)
 );
 ```
 
@@ -2257,6 +2267,18 @@ JOIN DIM_Journal AS DJ
 ON SFT.journal_id = DJ.dim_journal_key
 WHERE SFT.journal_id = 4 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
 ```
+
+## Test query to see if there is a relation between country and days_to_submission
+```{sql connection=dbcon}
+SELECT DJ.dim_journal_country, AVG(SFT.avg_days_to_submission)
+FROM Summary_Fact_Table AS SFT
+JOIN DIM_Journal AS DJ
+ON SFT.journal_id = DJ.dim_journal_key
+WHERE SFT.dim_year = 1 AND SFT.dim_quarter = 0 AND SFT.author_id = 0 AND SFT.avg_days_to_submission <> 0
+GROUP BY DJ.dim_journal_country
+ORDER BY DJ.dim_journal_country;
+```
+
 
 # Explore and Mine Data
 
