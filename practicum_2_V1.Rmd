@@ -2128,7 +2128,7 @@ for ( i in 2:nrow(dim_author.df) ) {
 }
 head(fact_table.df)
 ```
-
+## Create Statements for Fact and Dimension Tables
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS DIM_Year;
 ```
@@ -2136,7 +2136,9 @@ DROP TABLE IF EXISTS DIM_Year;
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Year (
   dim_year_key INT PRIMARY KEY,
-  dim_year_description VARCHAR(200) NOT NULL
+  dim_year_description VARCHAR(200) NOT NULL,
+  
+  INDEX(dim_year_key)
 );
 ```
 
@@ -2151,7 +2153,9 @@ DROP TABLE IF EXISTS DIM_Quarter;
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Quarter (
   dim_quarter_key INT PRIMARY KEY,
-  dim_quarter_description VARCHAR(200) NOT NULL
+  dim_quarter_description VARCHAR(200) NOT NULL,
+  
+  INDEX(dim_quarter_key)
 );
 ```
 
@@ -2168,7 +2172,9 @@ CREATE TABLE DIM_Author (
   dim_author_key INT PRIMARY KEY,
   dim_author_last_name VARCHAR(200) NOT NULL,
   dim_author_fore_name VARCHAR(200) NOT NULL,
-  dim_author_initials VARCHAR(200) NOT NULL
+  dim_author_initials VARCHAR(200) NOT NULL,
+  
+  INDEX(dim_author_key)
 );
 ```
 
@@ -2184,7 +2190,9 @@ DROP TABLE IF EXISTS DIM_Journal;
 CREATE TABLE DIM_Journal (
   dim_journal_key INT PRIMARY KEY,
   dim_journal_name VARCHAR(200) NOT NULL,
-  dim_journal_country VARCHAR(200) NOT NULL
+  dim_journal_country VARCHAR(200) NOT NULL,
+  
+  INDEX(dim_journal_key)
 );
 ```
 
@@ -2210,14 +2218,19 @@ CREATE TABLE Summary_Fact_Table (
   CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key),
   CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key),
   CONSTRAINT year_dim_id_fk FOREIGN KEY (dim_year) REFERENCES DIM_Year(dim_year_key),
-  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key)
+  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key),
+  
+  INDEX (journal_id),
+  INDEX (author_id),
+  INDEX (dim_year),
+  INDEX (dim_quarter)
 );
 ```
 
 ```{sql connection=dbcon}
 SELECT * FROM Summary_Fact_Table;
 ```
-
+# Load the fact and dimension tables
 ```{r}
 # we can run this when you think the table is OK
 dbWriteTable(dbcon, "DIM_Year", dim_year.df, row.names = FALSE, append = TRUE)
