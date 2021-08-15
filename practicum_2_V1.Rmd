@@ -2135,7 +2135,7 @@ DROP TABLE IF EXISTS DIM_Year;
 
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Year (
-  dim_year_key INT PRIMARY KEY AUTO_INCREMENT,
+  dim_year_key INT PRIMARY KEY,
   dim_year_description VARCHAR(200) NOT NULL
 );
 ```
@@ -2150,7 +2150,7 @@ DROP TABLE IF EXISTS DIM_Quarter;
 
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Quarter (
-  dim_quarter_key INT PRIMARY KEY AUTO_INCREMENT,
+  dim_quarter_key INT PRIMARY KEY,
   dim_quarter_description VARCHAR(200) NOT NULL
 );
 ```
@@ -2165,7 +2165,7 @@ DROP TABLE IF EXISTS DIM_Author;
 
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Author (
-  dim_author_key INT PRIMARY KEY AUTO_INCREMENT,
+  dim_author_key INT PRIMARY KEY,
   dim_author_last_name VARCHAR(200) NOT NULL,
   dim_author_fore_name VARCHAR(200) NOT NULL,
   dim_author_initials VARCHAR(200) NOT NULL
@@ -2182,7 +2182,7 @@ DROP TABLE IF EXISTS DIM_Journal;
 
 ```{sql connection=dbcon}
 CREATE TABLE DIM_Journal (
-  dim_journal_key INT PRIMARY KEY AUTO_INCREMENT,
+  dim_journal_key INT PRIMARY KEY,
   dim_journal_name VARCHAR(200) NOT NULL,
   dim_journal_country VARCHAR(200) NOT NULL
 );
@@ -2220,11 +2220,11 @@ SELECT * FROM Summary_Fact_Table;
 
 ```{r}
 # we can run this when you think the table is OK
-dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "DIM_Year", dim_year.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "DIM_Quarter", dim_quarter.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "DIM_Author", dim_author.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = TRUE)
+dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
 ```
 
 ## Test query on fact table to see how many articles author_id published overall
