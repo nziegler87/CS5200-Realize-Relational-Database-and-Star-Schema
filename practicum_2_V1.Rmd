@@ -812,6 +812,7 @@ WHERE Article.art_id = 3;
 ```
 
 
+
 # Create Star/Snowflake Schema
 
 ## Fact Table - Data Dump 
@@ -1136,18 +1137,6 @@ avgDaysToPub <- function(article_list) {
   }
 }
 ```
-
-```{sql connection=dbcon}
-
-SELECT DISTINCT(article_id)
-FROM Fact_Table_Dump
-WHERE journal_id = 1
-AND ji_pub_year = 2012
-AND (ji_pub_month >= 6 AND ji_pub_month <= 9)
-;
-                            
-```
-
 
 ```{r}
 # just for testing 
