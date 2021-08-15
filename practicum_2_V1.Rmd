@@ -958,7 +958,7 @@ daysToPub <- function(article_id) {
 
 ```{r}
 # Function to find num of articles published by journal
-numArticlesPublishedByJournal <- function(journal_id, year, quarter, author_id) {
+numArticlesPublishedByJournalandAuthor <- function(journal_id, year, quarter, author_id) {
   
   if ( quarter == 0 ){
     sqlStatement <- paste0('SELECT COUNT(article_id)
@@ -1011,7 +1011,7 @@ numArticlesPublishedByJournal <- function(journal_id, year, quarter, author_id) 
 
 ```{r}
 # Function to get num of articles with revisions based on journal
-numArticlesRevisedByJournal <- function(journal_id, year, quarter, author_id) {
+numArticlesRevisedByJournalandAuthor <- function(journal_id, year, quarter, author_id) {
   
   if ( quarter == 0 ){
     sqlStatement <- paste0('SELECT COUNT(article_id)
@@ -1068,57 +1068,407 @@ numArticlesRevisedByJournal <- function(journal_id, year, quarter, author_id) {
 ```
 
 ```{r}
+# Function to find num of articles published by journal
+numArticlesPublishedByJournal <- function(journal_id, year, quarter) {
+  
+  if ( quarter == 0 ){
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year);
+  
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 
+                           AND JI.publication_month <= 3)');
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 4 
+                           AND JI.publication_month <= 6)');
+    
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 7
+                           AND JI.publication_month <= 9)');
+    
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id =', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 10 
+                           AND JI.publication_month <= 12)');
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)[1]
+  return(as.numeric(count))
+}
+```
+
+```{r}
+# Function to get num of articles with revisions based on journal
+numArticlesRevisedByJournal <- function(journal_id, year, quarter) {
+  
+  if ( quarter == 0 ){
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised"');
+    
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 1 
+                           AND JI.publication_month <= 3)');
+    
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 4 
+                           AND JI.publication_month <= 6)');
+    
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 7 
+                           AND JI.publication_month <= 9)');
+    
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 10 
+                           AND JI.publication_month <= 12)');
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)
+  return(as.numeric(count))
+}
+```
+
+```{r}
+# Function to find num of articles published by journal
+numArticlesPublishedByAuthor <- function(author_id, year, quarter) {
+  
+  if ( quarter == 0 ){
+    sqlStatement <- paste0('SELECT COUNT(A.aut_id)
+                            FROM Author AS A
+                            JOIN Article_Author_Junction AS AJ
+                            ON A.aut_id = AJ.author_id
+                            JOIN Article AS ART
+                            ON AJ.article_id = ART.art_id
+                            JOIN Journal_Issue AS JI
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE A.aut_id = ', author_id, 
+                           ' AND JI.publication_year = ', year);
+  
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT COUNT(A.aut_id)
+                            FROM Author AS A
+                            JOIN Article_Author_Junction AS AJ
+                            ON A.aut_id = AJ.author_id
+                            JOIN Article AS ART
+                            ON AJ.article_id = ART.art_id
+                            JOIN Journal_Issue AS JI
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE A.aut_id = ', author_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 
+                            AND JI.publication_month <= 3)');
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT COUNT(A.aut_id)
+                            FROM Author AS A
+                            JOIN Article_Author_Junction AS AJ
+                            ON A.aut_id = AJ.author_id
+                            JOIN Article AS ART
+                            ON AJ.article_id = ART.art_id
+                            JOIN Journal_Issue AS JI
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE A.aut_id = ', author_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 4 
+                            AND JI.publication_month <= 6)');
+    
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT COUNT(A.aut_id)
+                            FROM Author AS A
+                            JOIN Article_Author_Junction AS AJ
+                            ON A.aut_id = AJ.author_id
+                            JOIN Article AS ART
+                            ON AJ.article_id = ART.art_id
+                            JOIN Journal_Issue AS JI
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE A.aut_id = ', author_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 7
+                            AND JI.publication_month <= 9)');
+    
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT COUNT(A.aut_id)
+                            FROM Author AS A
+                            JOIN Article_Author_Junction AS AJ
+                            ON A.aut_id = AJ.author_id
+                            JOIN Article AS ART
+                            ON AJ.article_id = ART.art_id
+                            JOIN Journal_Issue AS JI
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE A.aut_id = ', author_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 10 
+                             AND JI.publication_month <= 12)');
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)[1]
+  return(as.numeric(count))
+}
+```
+
+# TODO: THIS
+```{r}
+# Function to get num of articles with revisions based on journal
+numArticlesRevisedByAuthor <- function(journal_id, year, quarter) {
+  
+  if ( quarter == 0 ){
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised"');
+    
+  } else if ( quarter == 1) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 1 
+                           AND JI.publication_month <= 3)');
+    
+  } else if ( quarter == 2) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 4 
+                           AND JI.publication_month <= 6)');
+    
+  } else if ( quarter == 3) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 7 
+                           AND JI.publication_month <= 9)');
+    
+  } else if ( quarter == 4) {
+    sqlStatement <- paste0('SELECT COUNT(ART.art_id)
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            JOIN History AS H
+                            ON ART.art_id = H.article_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year,
+                            ' AND H.pub_status = "revised" 
+                           AND (JI.publication_month >= 10 
+                           AND JI.publication_month <= 12)');
+  }
+  
+  count <- dbGetQuery(dbcon, sqlStatement)
+  return(as.numeric(count))
+}
+```
+
+
+
+
+
+
+```{r}
 # Function to find the article IDs associated with each journal
 articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
   
   # if quarter information isn't provided, pull just based on year
   if ( quarter == 0 ){
-    sqlStatement <- paste0('SELECT DISTINCT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, ' 
-                            AND ji_pub_year = ', year);
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                           ' AND JI.publication_year = ', year);
     
   } else if ( quarter == 1) {
-    sqlStatement <- paste0('SELECT DISTINCT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 1 
-                            AND ji_pub_month <= 3)');
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 1 
+                           AND JI.publication_month <= 3)');
     
   } else if ( quarter == 2) {
-    sqlStatement <- paste0('SELECT DISTINCT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 4 
-                            AND ji_pub_month <= 6)');
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 4 
+                           AND JI.publication_month <= 6)');
     
   } else if ( quarter == 3) {
-    sqlStatement <- paste0('SELECT DISTINCT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 7
-                            AND ji_pub_month <= 9)');
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 7 
+                           AND JI.publication_month <= 9)');
     
   } else if ( quarter == 4) {
-    sqlStatement <- paste0('SELECT DISTINCT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 10 
-                            AND ji_pub_month <= 12)');
+    sqlStatement <- paste0('SELECT ART.art_id
+                            FROM Journal AS J
+                            JOIN Journal_Issue AS JI
+                            ON JI.journal_id = J.j_id
+                            JOIN Article AS ART
+                            ON ART.journal_issue_id = JI.issue_id
+                            WHERE J.j_id = ', journal_id, 
+                            ' AND JI.publication_year = ', year, 
+                            ' AND (JI.publication_month >= 10 
+                           AND JI.publication_month <= 12)');
   }
   
-  article_list <- dbGetQuery(dbcon, sqlStatement)
-  if ( nrow(article_list) == 0 ) return(NA)
+  article_list <- dbGetQuery(dbcon, sqlStatement)[[1]]
+  if ( length(article_list) == 0 ) return(NA)
   return(article_list)
 }
 ```
 
+```{sql connection=dbcon}
+SELECT COUNT(ART.art_id)
+FROM Journal AS J
+JOIN Journal_Issue AS JI
+ON JI.journal_id = J.j_id
+JOIN Article AS ART
+ON ART.journal_issue_id = JI.issue_id
+WHERE J.j_id = 1 
+AND JI.publication_year = 2012;
+```
+
+
 ```{r}
 avgDaysToPub <- function(article_list) {
+  
+  if ( is.na(article_list[1]) ) return(0)
   
   total <- 0
   size <- length(article_list)
@@ -1141,16 +1491,15 @@ avgDaysToPub <- function(article_list) {
 ```{r}
 # just for testing 
 # TODO: delete later
+numArticlesPublishedByJournal(1,2012,0)
 article_list <- articleIDsPublishedByJournal(1, 2012, 0)
 
 article_list
 length(article_list)
-#length(article_list)
 
-daysToPub(14)
-
-daysToPub(article_list[1])
 avgDaysToPub(article_list)
+
+
 ```
 
 ### Set up dimensions for summary table
@@ -1263,51 +1612,92 @@ for ( i in 2:nrow(dim_journal.df) ) {
     
     # loop through each year, except the first "ALL"
     for ( k in 2:nrow(dim_year.df) ) {
+    
+      # add in primary key
+      pk <- nrow(fact_table.df) + 1
       
-      # loop through each author, except the first "ALL"
-      for ( l in 2:nrow(dim_author.df) ) {
+      # set up ids in fact table
+      journal_id <- dim_journal.df[i,]$dim_journal_key  
+      quarter <- dim_quarter.df[j,]$dim_quarter_key
+      year <- dim_year.df[k,]$dim_year_key
+      author_id <- 0
+      year_description <- dim_year.df[k,]$dim_year_description
       
-        # add in primary key
-        pk <- nrow(fact_table.df) + 1
-        
-        # set up ids in fact table
-        journal_id <- dim_journal.df[i,]$dim_journal_key  
-        quarter <- dim_quarter.df[j,]$dim_quarter_key
-        year <- dim_year.df[k,]$dim_year_key
-        author_id <- dim_author.df[l,]$dim_author_key
-        year_description <- dim_year.df[k,]$dim_year_description
-        
-        # get number of articles published
-        num_published <- numArticlesPublishedByJournal(
-          journal_id, year_description, quarter, author_id)
-  
-        # retrieve the list of articles for analysis
-        article_list <- articleIDsPublishedByJournal(
-            journal_id, year_description, quarter)
-        
-        # get average days to publish
-        if ( is.na(article_list) ) {
-          days_to_pub <- 0
-        } else {
-          days_to_pub <- avgDaysToPub(article_list)
-        }
-        
-        # get num revisions
-        num_revisions <- numArticlesRevisedByJournal(
-          journal_id, year_description, quarter, author_id)
-        
-        # put the data into the data frame
-        fact_table.df[pk,] <- data.frame(
-          pk, journal_id, author_id, year, quarter, 
-          num_published, days_to_pub, num_revisions, 
-          stringsAsFactors = FALSE)
-      }
+      # get number of articles published
+      num_published <- numArticlesPublishedByJournal(
+        journal_id, year_description, quarter)
+      
+      # retrieve the list of articles for analysis
+      article_list <- articleIDsPublishedByJournal(
+        journal_id, year_description, quarter)
+      
+      # get average days to publish
+        days_to_pub <- avgDaysToPub(article_list)
+      
+      # get num revisions
+      num_revisions <- numArticlesRevisedByJournal(
+        journal_id, year_description, quarter)
+      
+      # put the data into the data frame
+      fact_table.df[pk,] <- data.frame(
+        pk, journal_id, author_id, year, quarter, 
+        num_published, days_to_pub, num_revisions, 
+        stringsAsFactors = FALSE)
     }
   }
 }
-
 fact_table.df
 ```
+
+```{r}
+# loop through each author, except the first "ALL"
+for ( i in 2:nrow(dim_author.df) ) {
+  
+  # loop through each quarter, incl the "ALL" quarter to get yearly totals
+  for ( j in 1:nrow(dim_quarter.df) ) {
+    
+    # loop through each year, except the first "ALL"
+    for ( k in 2:nrow(dim_year.df) ) {
+      
+      # add in primary key
+      pk <- nrow(fact_table.df) + 1
+      
+      # set up ids in fact table
+      journal_id <- 0 
+      quarter <- dim_quarter.df[j,]$dim_quarter_key
+      year <- dim_year.df[k,]$dim_year_key
+      author_id <- dim_author.df[i,]$dim_author_key
+      year_description <- dim_year.df[k,]$dim_year_description
+      
+      # get number of articles published
+      num_published <- numArticlesPublishedByAuthor(
+        author_id, year_description, quarter)
+      
+      # # retrieve the list of articles for analysis
+      # article_list <- articleIDsPublishedByJournal(
+      #   journal_id, year_description, quarter)
+      # 
+      # # get average days to publish
+      #   days_to_pub <- avgDaysToPub(article_list)
+        days_to_pub <- 1234
+      
+      # get num revisions
+      # num_revisions <- numArticlesRevisedByJournal(
+      #   journal_id, year_description, quarter)
+        num_revisions <- 2345
+      
+      # put the data into the data frame
+      fact_table.df[pk,] <- data.frame(
+        pk, journal_id, author_id, year, quarter, 
+        num_published, days_to_pub, num_revisions, 
+        stringsAsFactors = FALSE)      
+      
+    }
+  }
+}
+```
+
+
 
 ```{r}
 # we can run this when you think the table is OK
