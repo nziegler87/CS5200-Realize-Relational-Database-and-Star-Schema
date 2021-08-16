@@ -1,8 +1,8 @@
 ---
 title: "Practicum 2"
-course: "CS 5200"
+course: CS 5200
 date: "Summer 2021"
-project members: "Danielle Tolliver and Nathanial Ziegler"
+project members: Danielle Tolliver and Nathanial Ziegler
 ---
 
 # Setup and Connections
@@ -1952,12 +1952,6 @@ fact_table.df <- data.frame(fact_id = integer(),
 
 fact_table.df
 ```
-
-## Summarize data for all journals
-```{r}
-query <- paste0("SELECT ", journal_id, " AS journal_id")
-```
-
 
 ## Summarize data of journals for fact table
 
