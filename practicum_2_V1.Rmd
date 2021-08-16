@@ -2066,6 +2066,7 @@ size <- size$art_count
 ```
 
 ## Trends in seasonality
+### This is then calculated using our fact table further down in the document
 
 ```{r}
 seasonal_info <- dbGetQuery(dbcon, 'SELECT COUNT(DISTINCT(article_id)) as article_count
@@ -2101,6 +2102,7 @@ seasonal_barChart <- ggplot(
   data = seasonal_info, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = year_quarter)) + 
   labs(x = "Quarter", y = "Num of Articles") + 
+  ggtitle("Number of Articles Per Quarter") +
   guides(fill = FALSE) 
 
 print(seasonal_barChart)
