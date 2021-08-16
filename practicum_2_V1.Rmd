@@ -996,6 +996,7 @@ DROP TABLE IF EXISTS Fact_Table_Dump;
 
 ```{sql connection=dbcon}
 CREATE TABLE Fact_Table_Dump (
+  fact_table_pk PRIMARY KEY,
   article_id INT NOT NULL,
   article_title VARCHAR(255) NOT NULL,
   author_id INT NOT NULL,
@@ -1016,12 +1017,15 @@ CREATE TABLE Fact_Table_Dump (
   pub_day INT NOT NULL,
   
   CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key)
+  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key)
 
 );
 ```
 
 ```{r}
 # TODO: update the ERD for this
+# TODO: There was no primary key, so I added one in the create table and the ERD...need to update this
+# TODO: We can modify this (from practicum 1) to add in a pk - setDT(factTableDump.df, keep.rownames = TRUE)[]
 factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
                                 , ART.article_title
                                 , ART.pub_model
@@ -2394,6 +2398,11 @@ getHistoryDate <- function(article_id, history_event) {
 received_date <- getHistoryDate(1, "received")
 pub_date <- getPublicationDate(1)
 difference <- difftime(pub_date, received_date, units = "weeks")
+```
+
+```{sql connection=dbcon}
+SELECT journal_id, avg_days_to_submission FROM Summary_Fact_Table
+WHERE author_id = 0 AND dim_year = 0 AND dim_quarter = 0;
 ```
 
 ```{r}
