@@ -65,16 +65,15 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 # ERD
 
-![](Practicum%202%20-%203NF%20Schema.png "Practicum 2 - 3NF Schema")
+![](Practicum 2 - 3NF Schema.png "Practicum 2 - 3NF Schema")
 
 ## Below is a list of our assumptions
 
-### TODO: assumptions
 - We noted online that publishing the an article in more than one journal is in poor form, so for this project, we assumed that an article can only be published once
 - A few notes on the author table:
   - When loading the author table, we noticed that some individuals had a noted affiliation while others it was missing. 
   - For some people with affiliations, small differences in the text for that column was causing them to appear more than once in the author table. As such, that information was not loaded into the database.
-  - We noticed that there were a few names either with and without initials (ie. Danielle Q. Tolliver - DQT VS Danielle Tolliver - DT). While we assume these are the same person, because it is very much a possibility that two people share the same first and last name but have different middle initials, we did not combine them. With more identifying information, combining these fuzzy duplicates would have been possible.
+  - We noticed that there were a few names either with and without initials (ie. Danielle V. Tolliver - DVT VS Danielle Tolliver - DT). While we assume these are the same person, because it is very much a possibility that two people share the same first and last name but have different middle initials, we did not combine them. With more identifying information, combining these fuzzy duplicates would have been possible.
   - To eliminate duplicates the case of author first name and last name was standardized using the "str_to_title" function and initials were standardized using the "tolower" function
 - The case of journal titles were standardized using the "str_to_title" function.
 - Various enum values were populated using PubMed documentation: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
@@ -2337,8 +2336,6 @@ seasonal_info
 ```
 
 ```{r}
-#TODO: use the summary table to make this visualization
-
 # setting up the variables
 x_axis <- seasonal_info$year_quarter
 y_axis <- seasonal_info$article_count
