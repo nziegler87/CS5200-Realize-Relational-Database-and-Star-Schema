@@ -31,6 +31,7 @@ dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host,
 ```
 
 ## Function to remove connections, if error occurs
+
 ```{r}
 killDbConnections <- function () {
 
@@ -49,6 +50,8 @@ killDbConnections <- function () {
 ```{r}
 #killDbConnections()
 ```
+
+# Part 1 - Creating Database, Parse XML File, Upload Data
 
 ```{r}
 # View tables in the database
@@ -671,10 +674,6 @@ dbWriteTable(dbcon, "Journal", journal.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append = TRUE)
 ```
 
-```{sql connection=dbcon}
-SET FOREIGN_KEY_CHECKS = 1;
-```
-
 ## Queries to see if data is correct
 ## TODO: These can be deleted
 
@@ -806,7 +805,7 @@ ON Article_Author_Junction.author_id = Author.aut_id
 WHERE Article.art_id = 3;
 ```
 
-# Create Star/Snowflake Schema
+# Part 2 - Create Star/Snowflake Schema
 
 ## ERD
 
@@ -1002,8 +1001,6 @@ dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = T
 
 ## Create table for Fact_Table_Dump
 
-### HERE
-
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Fact_Table_Dump;
 ```
@@ -1032,7 +1029,7 @@ CREATE TABLE Fact_Table_Dump (
 );
 ```
 
-### Fact_Table_Dump Data Frame
+### Fact_Table_Dump Data Frame (Part 2 Question 1)
 
 ```{r}
 factTableDump.df <- dbGetQuery(dbcon, 'SELECT ROW_NUMBER() OVER (ORDER BY ART.article_title ASC) AS fact_table_pk
@@ -1064,6 +1061,7 @@ factTableDump.df <- dbGetQuery(dbcon, 'SELECT ROW_NUMBER() OVER (ORDER BY ART.ar
 
 head(factTableDump.df)
 ```
+### Upload Data for Fact Table Dump
 
 ```{r}
 dbWriteTable(dbcon, "Fact_Table_Dump", factTableDump.df, row.names = FALSE, append = TRUE)
@@ -2150,7 +2148,7 @@ avgDaysToPub <- function(article_list) {
 }
 ```
 
-### Populate the data for the summary table
+### Populate the data for the summary table (Part 2 Question 2)
 
 ```{r}
 # Create the summary data frame
@@ -2166,6 +2164,8 @@ fact_table.df <- data.frame(fact_id = integer(),
 
 fact_table.df
 ```
+
+### Summarize data of journals for fact table
 
 ```{r}
 # loop through each journal, except the first "ALL"
@@ -2214,6 +2214,7 @@ for ( i in 2:nrow(dim_journal.df) ) {
 }
 head(fact_table.df)
 ```
+### Summarize data of authors for fact table
 
 ```{r}
 # loop through each author, except the first "ALL"
@@ -2262,6 +2263,7 @@ for ( i in 2:nrow(dim_author.df) ) {
 }
 head(fact_table.df)
 ```
+### Upload the data
 
 ```{r}
 dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
@@ -2477,6 +2479,40 @@ journal_barChart <- ggplot(
   guides(fill = FALSE) 
 
 print(journal_barChart)
+```
+
+### Submissions by quarter
+
+```{r}
+submission_by_quarter <- dbGetQuery(dbcon, "SELECT dim_quarter, 
+                                                   SUM(num_articles_published) AS TotalArticles
+                                            FROM Summary_Fact_Table
+                                            WHERE author_id = 0 
+                                                  AND dim_year = 0 
+                                                  AND dim_quarter <> 0
+                                            GROUP BY dim_quarter;")
+submission_by_quarter
+```
+
+```{r}
+# setting up the variables
+x_axis <- as.numeric(submission_by_quarter$dim_quarter)
+y_axis <- as.numeric(submission_by_quarter$TotalArticles)
+
+
+# adorning the bar chart
+articles_by_quarter <- ggplot(
+  data = submission_by_quarter, aes(x = x_axis, y = y_axis)) + 
+  geom_line(color="blue") + 
+  labs(x = "Quarter", y = "Num Articles Published") + 
+  guides(fill = FALSE) 
+
+print(articles_by_quarter)
+```
+
+```{sql connection=dbcon}
+-- Turns on foreign key check
+SET FOREIGN_KEY_CHECKS = 1;
 ```
 
 ```{r}
