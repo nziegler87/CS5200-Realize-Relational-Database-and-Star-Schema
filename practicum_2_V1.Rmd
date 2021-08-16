@@ -30,6 +30,7 @@ dbcon <- dbConnect(MySQL(), dbname = db_name, host = db_host,
                    port = db_port, user = db_user, password = db_password)
 ```
 
+## Function to remove connections, if error occurs
 ```{r}
 killDbConnections <- function () {
 
@@ -46,7 +47,7 @@ killDbConnections <- function () {
 ```
 
 ```{r}
-killDbConnections()
+#killDbConnections()
 ```
 
 ```{r}
@@ -66,10 +67,20 @@ SET FOREIGN_KEY_CHECKS = 0;
 ## Below is a list of our assumptions
 
 ### TODO: assumptions
-
--   
-
--   
+- We noted online that publishing the an article in more than one journal is in poor form, so for this project, we assumed that an article can only be published once
+- A few notes on the author table:
+  - When loading the author table, we noticed that some individuals had a noted affiliation while others it was missing. 
+  - For some people with affiliations, small differences in the text for that column was causing them to appear more than once in the author table. As such, that information was not loaded into the database.
+  - We noticed that there were a few names either with and without initials (ie. Danielle Q. Tolliver - DQT VS Danielle Tolliver - DT). While we assume these are the same person, because it is very much a possibility that two people share the same first and last name but have different middle initials, we did not combine them. With more identifying information, combining these fuzzy duplicates would have been possible.
+  - To eliminate duplicates the case of author first name and last name was standardized using the "str_to_title" function and initials were standardized using the "tolower" function
+- The case of journal titles were standardized using the "str_to_title" function.
+- Various enum values were populated using PubMed documentation: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
+- For the first fact table, we wanted to create an easy table where one could see all information in the database in a less normalized way. As such, each row corresponds to an article. An article with multiple authors will appear multiple times in the this table. 
+- For the summary fact table:
+  - We wanted to look at days to publication after a journal article was submitted. This was calculated by looking at the difference in days between when an article was submitted (using the history table) and when the journal was published (using the pub date of the journal). Note, this analysis could be further enhanced by using a sample size larger than the given XML of 16 articles. 
+  - We also added in the number of articles published - based on the query, this is the number of articles published by an author or in a journal.
+  - Lastly, a year and quarter component was also included to allow someone to look at different snapshots in time
+  
 
 # Create Tables
 
@@ -665,6 +676,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 ```
 
 ## Queries to see if data is correct
+## TODO: These can be deleted
 
 ```{sql connection=dbcon}
 SELECT article_title
@@ -802,6 +814,8 @@ WHERE Article.art_id = 3;
 
 ## Data Frames for the Dimensions
 
+### Year Dimension
+
 ```{r}
 # Create the data frames
 dim_year.df <- data.frame(dim_year_key = integer(),
@@ -825,6 +839,8 @@ for ( i in 1:length(publication_years) ) {
 
 ```
 
+### Quarter Dimension
+
 ```{r}
 # Create the data frame
 dim_quarter.df <- data.frame(dim_quarter_key = integer(),
@@ -839,6 +855,8 @@ for ( i in 1:length(quarters_list) ){
   dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
 }
 ```
+
+### Author Dimension
 
 ```{r}
 # Create the data frame
@@ -862,6 +880,8 @@ dim_author.df <- rbind(dim_author.df, author_info_from_db)
 
 
 ```
+
+### Journal Dimension
 
 ```{r}
 # Create the data frame
@@ -982,43 +1002,42 @@ dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = T
 
 ## Create table for Fact_Table_Dump
 
+### HERE
+
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Fact_Table_Dump;
 ```
 
 ```{sql connection=dbcon}
 CREATE TABLE Fact_Table_Dump (
-  fact_table_pk PRIMARY KEY,
+  fact_table_pk INT PRIMARY KEY,
   article_id INT NOT NULL,
-  article_title VARCHAR(255) NOT NULL,
+  article_title VARCHAR(250) NOT NULL,
   author_id INT NOT NULL,
-  journal_name VARCHAR(255) NOT NULL,
+  journal_name VARCHAR(250) NOT NULL,
   issn INT NOT NULL,
-  issn_type VARCHAR(255) NOT NULL,
-  iso_abbreviation VARCHAR(255) NOT NULL,
-  journal_country VARCHAR(255) NOT NULL,
+  issn_type VARCHAR(250) NOT NULL,
+  iso_abbreviation VARCHAR(250) NOT NULL,
+  journal_country VARCHAR(250) NOT NULL,
   volume INT NOT NULL,
   issue INT NOT NULL,
   ji_pub_year INT NOT NULL,
   ji_pub_month INT NOT NULL,
-  pub_status VARCHAR(255) NOT NULL,
+  pub_status VARCHAR(250) NOT NULL,
   pub_year INT NOT NULL,
   pub_month INT NOT NULL,
   pub_day INT NOT NULL,
   
-  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key)
-
+  CONSTRAINT author_dim_id_fk_dump FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key)
 );
 ```
 
 ### Fact_Table_Dump Data Frame
 
 ```{r}
-setDT(factTableDump.df, keep.rownames = TRUE)[]
-
-factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
+factTableDump.df <- dbGetQuery(dbcon, 'SELECT ROW_NUMBER() OVER (ORDER BY ART.article_title ASC) AS fact_table_pk
+                                , ART.art_id as article_id
                                 , ART.article_title
-                                , ART.pub_model
                                 , AJ.author_id
                                 , J.journal_name
                                 , J.issn
@@ -1043,6 +1062,7 @@ factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
                                 JOIN History AS H
                                 ON H.article_id = ART.art_id;')
 
+head(factTableDump.df)
 ```
 
 ```{r}
