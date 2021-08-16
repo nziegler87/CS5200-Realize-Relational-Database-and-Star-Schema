@@ -1,8 +1,8 @@
 ---
-title: "Store XML in a Database"
-output:
-  html_document:
-    df_Print: paged
+title: "Practicum 2"
+course: "CS 5200"
+date: "Summer 2021"
+project members: "Danielle Tolliver and Nathanial Ziegler"
 ---
 
 # Load Packages
