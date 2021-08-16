@@ -17,7 +17,7 @@ library(stringr)  ## For capitalization
 library(ggplot2)
 ```
 
-## Connect to AWS
+# Connect to AWS
 
 ```{r}
 db_user <- "dbadmin"
@@ -46,9 +46,8 @@ killDbConnections <- function () {
 ```
 
 ```{r}
-#killDbConnections()
+killDbConnections()
 ```
-
 
 ```{r}
 # View tables in the database
@@ -62,9 +61,15 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 # ERD
 
-## TODO: Need to double check this ERD
+![](Practicum%202%20-%203NF%20Schema.png "Practicum 2 - 3NF Schema")
 
-![](Practicum2 - ERD.png "Practicum2 - ERD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1125%2C-339%2C8042%2C3233%2CqB62~LJfXzY6&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+## Below is a list of our assumptions
+
+### TODO: assumptions
+
+-   
+
+-   
 
 # Create Tables
 
@@ -223,8 +228,6 @@ CREATE TABLE Journal_Issue (
 SELECT * FROM Journal_Issue;
 ```
 
-
-
 # Helper Functions
 
 ## Row Exists
@@ -257,7 +260,6 @@ rowExists <- function (aRow, aDF){
 }
 ```
 
-
 ## monthYear
 
 A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered VARCHAR(255) is not valid.
@@ -281,7 +283,6 @@ monthYear <- function(month_text){
   stop("Month text not found. Could not convert to number.")
 }
 ```
-
 
 ## parseJournalInfo
 
@@ -317,7 +318,6 @@ parseJournalInfo <- function(article_node){
   return(a.journal)
 }
 ```
-
 
 ## parseJournalIssueInfo
 
@@ -384,6 +384,10 @@ parseJournalIssueInfo <- function(journal_id, article_node){
   return(an.issue)
 }
 ```
+
+## ParseArticleInfo
+
+Takes an issue_id and article_node and extracts needed information to add to article.df
 
 ```{r}
 parseArticleInfo <- function(issue_id, article_node){
@@ -453,9 +457,6 @@ journal.df <- data.frame(j_id = integer(),
                          stringsAsFactors = FALSE)
 ```
 
-
-
-
 # Load Data
 
 ## Parse XML Document
@@ -472,7 +473,6 @@ r <- xmlRoot(xmlDOM)
 # Get number of articles in XML file
 numArticles <- xmlSize(r) 
 ```
-
 
 ## Parse Article Information
 
@@ -630,50 +630,31 @@ for ( i in 1:numArticles ){
 
 ```
 
-
 # Upload Data
-
-```{r}
-author.df
-```
-
-## Prepare Data: Author
 
 ```{r}
 dbWriteTable(dbcon, "Author", author.df, row.names = FALSE, append = TRUE)
 ```
 
-## Prepare Data: Article
-
 ```{r}
 dbWriteTable(dbcon, "Article", article.df, row.names = FALSE, append = TRUE)
 ```
-
-## Prepare Data: Abstract
 
 ```{r}
 dbWriteTable(dbcon, "Abstract", abstract.df, row.names = FALSE, append = TRUE)
 ```
 
-## Prepare Data: Article Author Junction
-
 ```{r}
 dbWriteTable(dbcon, "Article_Author_Junction", article_author_junction.df, row.names = FALSE, append = TRUE)
 ```
-
-## Prepare Data: History
 
 ```{r}
 dbWriteTable(dbcon, "History", history.df, row.names = FALSE, append = TRUE)
 ```
 
-## Prepare Data: Journal
-
 ```{r}
 dbWriteTable(dbcon, "Journal", journal.df, row.names = FALSE, append = TRUE)
 ```
-
-## Prepare Data: Journal_Issue
 
 ```{r}
 dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append = TRUE)
@@ -682,7 +663,6 @@ dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append
 ```{sql connection=dbcon}
 SET FOREIGN_KEY_CHECKS = 1;
 ```
-
 
 ## Queries to see if data is correct
 
@@ -814,11 +794,13 @@ ON Article_Author_Junction.author_id = Author.aut_id
 WHERE Article.art_id = 3;
 ```
 
-
-
 # Create Star/Snowflake Schema
 
-## Set up dimensions
+## ERD
+
+![](Practicum 2 - Star Schema.png "Practicum 2 - Star Schema")
+
+## Data Frames for the Dimensions
 
 ```{r}
 # Create the data frames
@@ -900,6 +882,10 @@ journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key,
 dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
 ```
 
+## Create Table for Dimensions
+
+### DIM_Year
+
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS DIM_Year;
 ```
@@ -918,6 +904,8 @@ CREATE TABLE DIM_Year (
 SELECT * FROM DIM_Year;
 ```
 
+### DIM_Quarter
+
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS DIM_Quarter;
 ```
@@ -935,6 +923,8 @@ CREATE TABLE DIM_Quarter (
 ```{sql connection=dbcon}
 SELECT * FROM DIM_Quarter;
 ```
+
+### DIM_Author
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS DIM_Author;
@@ -958,6 +948,8 @@ CREATE TABLE DIM_Author (
 SELECT * FROM DIM_Author;
 ```
 
+### DIM_Journal
+
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS DIM_Journal;
 ```
@@ -978,6 +970,8 @@ CREATE TABLE DIM_Journal (
 SELECT * FROM DIM_Journal;
 ```
 
+### Uploading DIM Data
+
 ```{r}
 # we can run this when you think the table is OK
 dbWriteTable(dbcon, "DIM_Year", dim_year.df, row.names = FALSE, append = TRUE)
@@ -986,9 +980,7 @@ dbWriteTable(dbcon, "DIM_Author", dim_author.df, row.names = FALSE, append = TRU
 dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = TRUE)
 ```
 
-## Fact Table - Data Dump 
-
-![](Practicum2 - Star Schema.png "Practicum 2 - FTD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-4369%2C-3185%2C9062%2C7500%2CqFE4j-VncB.u&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+## Create table for Fact_Table_Dump
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Fact_Table_Dump;
@@ -1000,13 +992,11 @@ CREATE TABLE Fact_Table_Dump (
   article_id INT NOT NULL,
   article_title VARCHAR(255) NOT NULL,
   author_id INT NOT NULL,
-  pub_model INT NOT NULL,
   journal_name VARCHAR(255) NOT NULL,
   issn INT NOT NULL,
   issn_type VARCHAR(255) NOT NULL,
   iso_abbreviation VARCHAR(255) NOT NULL,
   journal_country VARCHAR(255) NOT NULL,
-  journal_id INT NOT NULL,
   volume INT NOT NULL,
   issue INT NOT NULL,
   ji_pub_year INT NOT NULL,
@@ -1017,15 +1007,15 @@ CREATE TABLE Fact_Table_Dump (
   pub_day INT NOT NULL,
   
   CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key)
-  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key)
 
 );
 ```
 
+### Fact_Table_Dump Data Frame
+
 ```{r}
-# TODO: update the ERD for this
-# TODO: There was no primary key, so I added one in the create table and the ERD...need to update this
-# TODO: We can modify this (from practicum 1) to add in a pk - setDT(factTableDump.df, keep.rownames = TRUE)[]
+setDT(factTableDump.df, keep.rownames = TRUE)[]
+
 factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
                                 , ART.article_title
                                 , ART.pub_model
@@ -1035,7 +1025,6 @@ factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
                                 , J.issn_type
                                 , J.iso_abbreviation
                                 , J.journal_country
-                                , JI.journal_id
                                 , JI.volume 
                                 , JI.issue
                                 , JI.publication_year as ji_pub_year
@@ -1064,7 +1053,41 @@ dbWriteTable(dbcon, "Fact_Table_Dump", factTableDump.df, row.names = FALSE, appe
 SELECT * FROM Fact_Table_Dump;
 ```
 
-## Summarized Fact Table
+## Create Table for Summary_Fact_Table
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Summary_Fact_Table;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE Summary_Fact_Table (
+  fact_id INT PRIMARY KEY AUTO_INCREMENT,
+  journal_id INT NOT NULL,
+  author_id INT NOT NULL,
+  dim_year INT NOT NULL,
+  dim_quarter INT NOT NULL,
+  num_articles_published INT NOT NULL,
+  avg_days_to_submission INT NOT NULL,
+  num_articles_with_revisions INT NOT NULL,
+  
+  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key),
+  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key),
+  CONSTRAINT year_dim_id_fk FOREIGN KEY (dim_year) REFERENCES DIM_Year(dim_year_key),
+  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key),
+  
+  INDEX (journal_id),
+  INDEX (author_id),
+  INDEX (dim_year),
+  INDEX (dim_quarter),
+  INDEX (num_articles_published),
+  INDEX (avg_days_to_submission),
+  INDEX (num_articles_with_revisions)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Summary_Fact_Table;
+```
 
 ### Functions to summarize the data
 
@@ -2107,45 +2130,7 @@ avgDaysToPub <- function(article_list) {
 }
 ```
 
-### Summary table 
-
-![](Practicum2 - Star Schema.png "Practicum 2 - Summary Fact Table") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-4369%2C-3185%2C9062%2C7500%2CqFE4j-VncB.u&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS Summary_Fact_Table;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE Summary_Fact_Table (
-  fact_id INT PRIMARY KEY AUTO_INCREMENT,
-  journal_id INT NOT NULL,
-  author_id INT NOT NULL,
-  dim_year INT NOT NULL,
-  dim_quarter INT NOT NULL,
-  num_articles_published INT NOT NULL,
-  avg_days_to_submission INT NOT NULL,
-  num_articles_with_revisions INT NOT NULL,
-  
-  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key),
-  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key),
-  CONSTRAINT year_dim_id_fk FOREIGN KEY (dim_year) REFERENCES DIM_Year(dim_year_key),
-  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key),
-  
-  INDEX (journal_id),
-  INDEX (author_id),
-  INDEX (dim_year),
-  INDEX (dim_quarter),
-  INDEX (num_articles_published),
-  INDEX (avg_days_to_submission),
-  INDEX (num_articles_with_revisions)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM Summary_Fact_Table;
-```
-
-## Populate the data for the summary table
+### Populate the data for the summary table
 
 ```{r}
 # Create the summary data frame
@@ -2282,7 +2267,6 @@ ON SFT.journal_id = DJ.dim_journal_key
 WHERE SFT.journal_id = 4 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
 ```
 
-
 ## Test query to see if there is a relation between country and days_to_submission
 
 ```{sql connection=dbcon}
@@ -2295,10 +2279,7 @@ GROUP BY DJ.dim_journal_country
 ORDER BY DJ.dim_journal_country;
 ```
 
-
 # Explore and Mine Data
-
-## Global variables
 
 ```{r}
 # getting the size of the article count
@@ -2306,7 +2287,6 @@ size <- dbGetQuery(dbcon, 'SELECT COUNT(art_id) AS art_count
                           FROM Article')
 size <- size$art_count
 ```
-
 
 ## Trends in seasonality
 
@@ -2342,13 +2322,13 @@ x_axis <- seasonal_info$year_quarter
 y_axis <- seasonal_info$article_count
 
 # adorning the bar chart
-lineChart <- ggplot(
+seasonal_barChart <- ggplot(
   data = seasonal_info, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = year_quarter)) + 
   labs(x = "Quarter", y = "Num of Articles") + 
   guides(fill = FALSE) 
 
-print(barChart)
+print(seasonal_barChart)
 ```
 
 ## Trends in duration until publication
@@ -2400,11 +2380,6 @@ pub_date <- getPublicationDate(1)
 difference <- difftime(pub_date, received_date, units = "weeks")
 ```
 
-```{sql connection=dbcon}
-SELECT journal_id, avg_days_to_submission FROM Summary_Fact_Table
-WHERE author_id = 0 AND dim_year = 0 AND dim_quarter = 0;
-```
-
 ```{r}
 # defining the new data frame
 pub_information <- data.frame(art_id = character(),
@@ -2446,7 +2421,7 @@ y_avg <- round(mean(y_axis),0)
 avg_string <- paste("Avg:", y_avg, sep=" ")
 
 # adorning the bar chart
-barChart <- ggplot(
+article_barChart <- ggplot(
   data = pub_information, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = art_id)) + 
   labs(x = "Article ID", y = "Weeks to publish") + 
@@ -2454,7 +2429,34 @@ barChart <- ggplot(
   geom_text(aes(0, y_avg,label = avg_string, vjust = -1, hjust = -8)) +
   guides(fill = FALSE) 
 
-print(barChart)
+print(article_barChart)
+```
+
+```{r}
+journal_information <- dbGetQuery(dbcon, 'SELECT journal_id, avg_days_to_submission 
+                       FROM Summary_Fact_Table
+                       WHERE author_id = 0 
+                       AND dim_year = 0 
+                       AND dim_quarter = 0')
+```
+
+```{r}
+# setting up the variables
+x_axis <- as.numeric(journal_information$journal_id)
+y_axis <- as.numeric(journal_information$avg_days_to_submission)
+y_avg <- round(mean(y_axis),0)
+avg_string <- paste("Avg:", y_avg, sep=" ")
+
+# adorning the bar chart
+journal_barChart <- ggplot(
+  data = journal_information, aes(x = x_axis, y = y_axis)) + 
+  geom_bar(stat = "identity", aes(fill = journal_id)) + 
+  labs(x = "Journal ID", y = "Days to submission") + 
+  geom_hline(yintercept = y_avg, color = "black") + 
+  geom_text(aes(0, y_avg,label = avg_string, vjust = -1, hjust = -8)) +
+  guides(fill = FALSE) 
+
+print(journal_barChart)
 ```
 
 ```{r}
