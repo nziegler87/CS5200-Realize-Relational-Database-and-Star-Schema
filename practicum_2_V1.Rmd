@@ -5,7 +5,9 @@ date: "Summer 2021"
 project members: "Danielle Tolliver and Nathanial Ziegler"
 ---
 
-# Load Packages
+# Setup and Connections
+
+## Load Packages
 
 ```{r}
 library(DBI)
@@ -17,7 +19,7 @@ library(stringr)  ## For capitalization
 library(ggplot2)
 ```
 
-# Connect to AWS
+## Connect to AWS
 
 ```{r}
 db_user <- "dbadmin"
@@ -47,11 +49,11 @@ killDbConnections <- function () {
 }
 ```
 
+### Line of code to kill connections; uncomment and run, if needed
+
 ```{r}
 #killDbConnections()
 ```
-
-# Part 1 - Creating Database, Parse XML File, Upload Data
 
 ```{r}
 # View tables in the database
@@ -63,30 +65,38 @@ dbListTables(dbcon)
 SET FOREIGN_KEY_CHECKS = 0;
 ```
 
-# ERD
+## Assumptions and Approach to Project
 
-![](Practicum 2 - 3NF Schema.png "Practicum 2 - 3NF Schema")
+-   We noted online that publishing the an article in more than one journal is in poor form, so for this project, we assumed that an article can only be published once
 
-## Below is a list of our assumptions
+-   A few notes on the author table:
 
-- We noted online that publishing the an article in more than one journal is in poor form, so for this project, we assumed that an article can only be published once
-- A few notes on the author table:
-  - When loading the author table, we noticed that some individuals had a noted affiliation while others it was missing. 
-  - For some people with affiliations, small differences in the text for that column was causing them to appear more than once in the author table. As such, that information was not loaded into the database.
-  - We noticed that there were a few names either with and without initials (ie. Danielle V. Tolliver - DVT VS Danielle Tolliver - DT). While we assume these are the same person, because it is very much a possibility that two people share the same first and last name but have different middle initials, we did not combine them. With more identifying information, combining these fuzzy duplicates would have been possible.
-  - To eliminate duplicates the case of author first name and last name was standardized using the "str_to_title" function and initials were standardized using the "tolower" function
-- The case of journal titles were standardized using the "str_to_title" function.
-- Various enum values were populated using PubMed documentation: https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/
-- For the first fact table, we wanted to create an easy table where one could see all information in the database in a less normalized way. As such, each row corresponds to an article. An article with multiple authors will appear multiple times in the this table. 
-- For the summary fact table:
-  - We wanted to look at days to publication after a journal article was submitted. This was calculated by looking at the difference in days between when an article was submitted (using the history table) and when the journal was published (using the pub date of the journal). Note, this analysis could be further enhanced by using a sample size larger than the given XML of 16 articles. 
-  - We also added in the number of articles published - based on the query, this is the number of articles published by an author or in a journal.
-  - Lastly, a year and quarter component was also included to allow someone to look at different snapshots in time
-  
+    -   When loading the author table, we noticed that some individuals had a noted affiliation while others it was missing.
+    -   For some people with affiliations, small differences in the text for that column was causing them to appear more than once in the author table. As such, that information was not loaded into the database.
+    -   We noticed that there were a few names either with and without initials (ie. Danielle V. Tolliver - DVT VS Danielle Tolliver - DT). While we assume these are the same person, because it is very much a possibility that two people share the same first and last name but have different middle initials, we did not combine them. With more identifying information, combining these fuzzy duplicates would have been possible.
+    -   To eliminate duplicates the case of author first name and last name was standardized using the "str_to_title" function and initials were standardized using the "tolower" function
 
-# Create Tables
+-   The case of journal titles were standardized using the "str_to_title" function.
 
-## AUTHOR
+-   Various enum values were populated using PubMed documentation: <https://dtd.nlm.nih.gov/ncbi/pubmed/doc/out/180101/>
+
+-   For the first fact table, we wanted to create an easy table where one could see all information in the database in a less normalized way. As such, each row corresponds to an article. An article with multiple authors will appear multiple times in the this table.
+
+-   For the summary fact table:
+
+    -   We wanted to look at days to publication after a journal article was submitted. This was calculated by looking at the difference in days between when an article was submitted (using the history table) and when the journal was published (using the pub date of the journal). Note, this analysis could be further enhanced by using a sample size larger than the given XML of 16 articles.
+    -   We also added in the number of articles published - based on the query, this is the number of articles published by an author or in a journal.
+    -   Lastly, a year and quarter component was also included to allow someone to look at different snapshots in time
+
+# Part 1 - Creating Database, Parse XML File, Upload Data
+
+## ERD for Part 1
+
+![](Practicum%202%20-%203NF%20Schema.png "Practicum 2 - 3NF Schema")
+
+## Create Tables
+
+### AUTHOR
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Author;
@@ -105,7 +115,7 @@ CREATE TABLE Author (
 SELECT * FROM Author;
 ```
 
-## ARTICLE
+### ARTICLE
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Article;
@@ -124,7 +134,7 @@ CREATE TABLE Article (
 SELECT * FROM Article;
 ```
 
-## ABSTRACT
+### ABSTRACT
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Abstract;
@@ -153,7 +163,7 @@ CREATE TABLE Abstract (
 SELECT * FROM Abstract;
 ```
 
-## ARTICLE AUTHOR JUNCTION
+### ARTICLE AUTHOR JUNCTION
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Article_Author_Junction;
@@ -174,7 +184,7 @@ CREATE TABLE Article_Author_Junction (
 SELECT * FROM Article_Author_Junction;
 ```
 
-## HISTORY
+### HISTORY
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS History;
@@ -197,7 +207,7 @@ CREATE TABLE History (
 SELECT * FROM History;
 ```
 
-## JOURNAL
+### JOURNAL
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Journal;
@@ -218,7 +228,7 @@ CREATE TABLE Journal (
 SELECT * FROM Journal;
 ```
 
-## JOURNAL_ISSUE
+### JOURNAL_ISSUE
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Journal_Issue;
@@ -241,9 +251,9 @@ CREATE TABLE Journal_Issue (
 SELECT * FROM Journal_Issue;
 ```
 
-# Helper Functions
+## Helper Functions
 
-## Row Exists
+### Row Exists
 
 A function to determine if a given row exists in a column. Returns the value of the first column of that row (primary key for that row) if all columns except the first one match, otherwise returns 0.
 
@@ -273,7 +283,7 @@ rowExists <- function (aRow, aDF){
 }
 ```
 
-## monthYear
+### monthYear
 
 A function that converts a three character string, "MAR", to the correct month number. Returns NA if value passed in is NA. Throws an error if the entered VARCHAR(255) is not valid.
 
@@ -297,7 +307,7 @@ monthYear <- function(month_text){
 }
 ```
 
-## parseJournalInfo
+### parseJournalInfo
 
 Takes an article_node and extracts needed information to add to article.df
 
@@ -332,7 +342,7 @@ parseJournalInfo <- function(article_node){
 }
 ```
 
-## parseJournalIssueInfo
+### parseJournalIssueInfo
 
 Takes an article_node and journal_id and extracts needed information to add to journal.df
 
@@ -398,7 +408,7 @@ parseJournalIssueInfo <- function(journal_id, article_node){
 }
 ```
 
-## ParseArticleInfo
+### ParseArticleInfo
 
 Takes an issue_id and article_node and extracts needed information to add to article.df
 
@@ -470,9 +480,9 @@ journal.df <- data.frame(j_id = integer(),
                          stringsAsFactors = FALSE)
 ```
 
-# Load Data
+## Load Data
 
-## Parse XML Document
+### Parse XML Document
 
 ```{r}
 fn <- "pubmed_sample.xml"
@@ -487,7 +497,7 @@ r <- xmlRoot(xmlDOM)
 numArticles <- xmlSize(r) 
 ```
 
-## Parse Article Information
+### Parse Article Information
 
 ```{r}
 # Looping through all of the articles
@@ -643,172 +653,29 @@ for ( i in 1:numArticles ){
 
 ```
 
-# Upload Data
+## Upload Data
 
 ```{r}
 dbWriteTable(dbcon, "Author", author.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "Article", article.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "Abstract", abstract.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "Article_Author_Junction", article_author_junction.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "History", history.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "Journal", journal.df, row.names = FALSE, append = TRUE)
-```
 
-```{r}
 dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append = TRUE)
-```
-
-## Queries to see if data is correct
-## TODO: These can be deleted
-
-```{sql connection=dbcon}
-SELECT article_title
-, journal_name
-, volume
-, issue
-, publication_year
-, publication_month
-FROM Article AS A
-JOIN Journal_Issue AS JI
-ON A.art_id = JI.issue_id
-JOIN Journal AS J
-ON JI.journal_id = J.j_id;
-;
-```
-
-```{sql connection=dbcon}
-SELECT SUBSTRING(article_title, 1, 75) AS ArticleTitle
-, COUNT(art_aut_id) As AuthorCount
-FROM Article AS A
-JOIN Article_Author_Junction AS AJ
-ON A.art_id = AJ.article_id
-JOIN Author AS AU
-ON AJ.art_aut_id = AU.aut_id
-GROUP BY article_title;
-```
-
-```{sql connection=dbcon}
-SELECT A.article_title, JO.journal_name, J.publication_year, J.publication_month
-FROM Article AS A
-JOIN Journal_Issue AS J
-ON A.journal_issue_id = J.issue_id
-JOIN Journal AS JO
-ON J.journal_id = JO.j_id
-WHERE J.journal_id = 4 AND J.publication_year = 2012
-ORDER BY J.publication_month ASC;
-```
-
-```{sql connection=dbcon}
-SELECT AR.aut_id
-, CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName,
-       A.article_title, JO.journal_name, J.publication_year, J.publication_month
-FROM Article_Author_Junction AS AJ
-JOIN Author AS AR
-ON AJ.author_id = AR.aut_id
-JOIN Article AS A
-ON A.art_id = AJ.article_id
-JOIN Journal_Issue AS J
-ON A.journal_issue_id = J.issue_id
-JOIN Journal AS JO
-ON J.journal_id = JO.j_id
-WHERE AR.aut_id = 3 AND J.publication_year = 2012
-ORDER BY J.publication_month ASC;
-```
-
-```{sql connection=dbcon}
-SELECT DISTINCT(A.art_id)
-FROM Article_Author_Junction AS AJ
-JOIN Author AS AR
-ON AJ.author_id = AR.aut_id
-JOIN Article AS A
-ON A.art_id = AJ.article_id
-JOIN Journal_Issue AS J
-ON A.journal_issue_id = J.issue_id
-WHERE J.publication_year = 2012
-AND J.journal_id = 4;
-```
-
-```{sql connection=dbcon}
-SELECT CONCAT(AR.author_last_name,", ", AR.author_fore_name) AS AuthorName
-, COUNT(AJ.author_id) AS ArticleCount
-FROM Article_Author_Junction AS AJ
-JOIN Author AS AR
-ON AJ.author_id = AR.aut_id
-JOIN Article AS A
-ON A.art_id = AJ.article_id
-JOIN Journal_Issue AS J
-ON A.journal_issue_id = J.issue_id
-JOIN Journal AS JO
-ON J.journal_id = JO.j_id
-WHERE J.publication_year = 2012 AND (J.publication_month >= 10 AND J.publication_month <= 12)
-GROUP BY AR.aut_id
-ORDER BY ArticleCount DESC;
-```
-
-```{sql connection=dbcon}
-SELECT SUBSTRING(article_title, 1, 50) AS ArticleTitle
-, journal_name
-, volume
-, issue
-, publication_year
-, publication_month
-, H.pub_status
-, H.year
-, H.month, H.day
-FROM Article AS A
-JOIN Journal_Issue AS JI
-ON A.art_id = JI.issue_id
-JOIN Journal AS J
-ON JI.journal_id = J.j_id
-JOIN History AS H
-ON H.article_id = A.art_id
-WHERE A.art_id = 16;
-```
-
-```{sql connection=dbcon}
-SELECT * FROM Author;
-```
-
-```{sql connection=dbcon}
-SELECT article_title
-, Abstract.*
-FROM Article
-JOIN Abstract
-ON Article.art_id = Abstract.article_id
-WHERE Article.art_id = 3;
-```
-
-```{sql connection=dbcon}
-SELECT article_title
-, Author.*
-FROM Article
-JOIN Article_Author_Junction
-ON Article.art_id = Article_Author_Junction.article_id
-JOIN Author
-ON Article_Author_Junction.author_id = Author.aut_id
-WHERE Article.art_id = 3;
 ```
 
 # Part 2 - Create Star/Snowflake Schema
 
 ## ERD
 
-![](Practicum 2 - Star Schema.png "Practicum 2 - Star Schema")
+![](Practicum%202%20-%20Star%20Schema.png "Practicum 2 - Star Schema")
 
 ## Data Frames for the Dimensions
 
@@ -998,7 +865,9 @@ dbWriteTable(dbcon, "DIM_Author", dim_author.df, row.names = FALSE, append = TRU
 dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = TRUE)
 ```
 
-## Create table for Fact_Table_Dump
+## Fact_Table_Dump Data Frame (Part 2 Question 1)
+
+### Create table for Fact_Table_Dump
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Fact_Table_Dump;
@@ -1028,7 +897,7 @@ CREATE TABLE Fact_Table_Dump (
 );
 ```
 
-### Fact_Table_Dump Data Frame (Part 2 Question 1)
+### Create data frame to upload Fact_Table_Dump
 
 ```{r}
 factTableDump.df <- dbGetQuery(dbcon, 'SELECT ROW_NUMBER() OVER (ORDER BY ART.article_title ASC) AS fact_table_pk
@@ -1060,6 +929,7 @@ factTableDump.df <- dbGetQuery(dbcon, 'SELECT ROW_NUMBER() OVER (ORDER BY ART.ar
 
 head(factTableDump.df)
 ```
+
 ### Upload Data for Fact Table Dump
 
 ```{r}
@@ -1070,7 +940,7 @@ dbWriteTable(dbcon, "Fact_Table_Dump", factTableDump.df, row.names = FALSE, appe
 SELECT * FROM Fact_Table_Dump;
 ```
 
-## Create Table for Summary_Fact_Table
+## Summary_Fact_Table Data Frame (Part 2 Question 2)
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Summary_Fact_Table;
@@ -1106,7 +976,10 @@ CREATE TABLE Summary_Fact_Table (
 SELECT * FROM Summary_Fact_Table;
 ```
 
-### Functions to summarize the data
+## Functions to summarize the data
+
+### getPublicationDate
+Function to return publication date of an article as a date object
 
 ```{r}
 # Function to return publication date of an article as a date object
@@ -1129,6 +1002,9 @@ getPublicationDate <- function(article_id) {
   return(as.Date(as.character(date), "%Y-%m-%d"))
 }
 ```
+
+### getHistoryDate
+Function to retrieve date of history event of an article.
 
 ```{r}
 # Function to retrieve date of history event of an article
@@ -1153,6 +1029,9 @@ getHistoryDate <- function(article_id, history_event) {
 }
 ```
 
+### daysToPub
+Function to get the number of days to publish for an article.
+
 ```{r}
 # Function to get the number of days to publish for an article
 daysToPub <- function(article_id) { 
@@ -1174,116 +1053,8 @@ daysToPub <- function(article_id) {
 }
 ```
 
-```{r}
-# Function to find num of articles published by journal and author
-numArticlesPublishedByJournalandAuthor <- function(journal_id, year, quarter, author_id) {
-  
-  if ( quarter == 0 ){
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id =', journal_id, ' 
-                            AND ji_pub_year = ', year,
-                            ' AND author_id = ', author_id);
-  
-  } else if ( quarter == 1) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id =', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 1 
-                            AND ji_pub_month <= 3)',
-                            ' AND author_id = ', author_id);
-    
-  } else if ( quarter == 2) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id =', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 4 
-                            AND ji_pub_month <= 6)',
-                            ' AND author_id = ', author_id);
-    
-  } else if ( quarter == 3) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id =', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 7
-                            AND ji_pub_month <= 9)',
-                            ' AND author_id = ', author_id);
-    
-  } else if ( quarter == 4) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id =', journal_id, 
-                            ' AND ji_pub_year = ', year, 
-                            ' AND (ji_pub_month >= 10 
-                            AND ji_pub_month <= 12)',
-                            ' AND author_id = ', author_id);
-  }
-  
-  count <- dbGetQuery(dbcon, sqlStatement)
-  return(as.numeric(count))
-}
-```
-
-```{r}
-# Function to get num of articles with revisions based on journal and author
-numArticlesRevisedByJournalandAuthor <- function(journal_id, year, quarter, author_id) {
-  
-  if ( quarter == 0 ){
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year,
-                            ' AND pub_status = "revised"',
-                            ' AND author_id = ', author_id);
-    
-  } else if ( quarter == 1) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                           FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year,
-                            ' AND pub_status = "revised" 
-                            AND (ji_pub_month >= 1 
-                            AND ji_pub_month <= 3)',
-                            ' AND author_id = ', author_id);
-    
-  } else if ( quarter == 2) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year,
-                            ' AND pub_status = "revised" 
-                            AND (ji_pub_month >= 4 
-                            AND ji_pub_month <= 6)
-                           AND author_id = ', author_id);
-    
-  } else if ( quarter == 3) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year,
-                            ' AND pub_status = "revised" 
-                            AND (ji_pub_month >= 7 
-                            AND ji_pub_month <= 9)
-                           AND author_id = ', author_id);
-    
-  } else if ( quarter == 4) {
-    sqlStatement <- paste0('SELECT COUNT(article_id)
-                            FROM Fact_Table_Dump
-                            WHERE journal_id = ', journal_id, 
-                            ' AND ji_pub_year = ', year,
-                            ' AND pub_status = "revised" 
-                            AND (ji_pub_month >= 10 
-                            AND ji_pub_month <= 12)
-                           AND author_id = ', author_id);
-  }
-  
-  count <- dbGetQuery(dbcon, sqlStatement)
-  return(as.numeric(count))
-}
-```
+### numArticlesPublishedByJournal
+Function to find num of articles published by journal.
 
 ```{r}
 # Function to find num of articles published by journal
@@ -1402,6 +1173,9 @@ numArticlesPublishedByJournal <- function(journal_id, year, quarter) {
   return(as.numeric(count))
 }
 ```
+
+### numArticlesRevisedByJournal
+Function to get num of articles with revisions based on journal.
 
 ```{r}
 # Function to get num of articles with revisions based on journal
@@ -1553,6 +1327,9 @@ numArticlesRevisedByJournal <- function(journal_id, year, quarter) {
 }
 ```
 
+### numArticlesPublishedByAuthor
+Function to find num of articles published by author.
+
 ```{r}
 # Function to find num of articles published by author
 numArticlesPublishedByAuthor <- function(author_id, year, quarter) {
@@ -1690,6 +1467,9 @@ numArticlesPublishedByAuthor <- function(author_id, year, quarter) {
   return(as.numeric(count))
 }
 ```
+
+### numArticlesRevisedByAuthor
+Function to get num of articles with revisions based on author.
 
 ```{r}
 # Function to get num of articles with revisions based on author
@@ -1861,6 +1641,9 @@ numArticlesRevisedByAuthor <- function(author_id, year, quarter) {
 }
 ```
 
+### articleIDsPublishedByJournal
+Function to return a list of article IDs associated with each journal
+
 ```{r}
 # Function to find the article IDs associated with each journal
 articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
@@ -1982,6 +1765,9 @@ articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
   return(article_list)
 }
 ```
+
+### articleIDsPublishedByAuthor
+Function to return a list of article IDs associated with each author.
 
 ```{r}
 # Function to find the article IDs associated with each author
@@ -2122,6 +1908,9 @@ articleIDsPublishedByAuthor <- function(author_id, year, quarter) {
 }
 ```
 
+### avgDaysToPub
+Function that takes in a list of article_ids and returns the average days to pub for that list of articles.
+
 ```{r}
 # function that takes in a list of article_ids and returns the
 # average days to pub for that list of articles
@@ -2147,7 +1936,7 @@ avgDaysToPub <- function(article_list) {
 }
 ```
 
-### Populate the data for the summary table (Part 2 Question 2)
+## Populate the data for the summary table
 
 ```{r}
 # Create the summary data frame
@@ -2164,7 +1953,13 @@ fact_table.df <- data.frame(fact_id = integer(),
 fact_table.df
 ```
 
-### Summarize data of journals for fact table
+## Summarize data for all journals
+```{r}
+query <- paste0("SELECT ", journal_id, " AS journal_id")
+```
+
+
+## Summarize data of journals for fact table
 
 ```{r}
 # loop through each journal, except the first "ALL"
@@ -2173,9 +1968,7 @@ for ( i in 2:nrow(dim_journal.df) ) {
   # loop through each quarter, incl the "ALL" quarter to get yearly totals
   for ( j in 1:nrow(dim_quarter.df) ) {
     
-    # loop through each year, except the first "ALL"
-    # TODO: Updated the functions and this to do all...okay?
-
+    # loop through each year
     for ( k in 1:nrow(dim_year.df) ) {
     
       # add in primary key
@@ -2213,7 +2006,8 @@ for ( i in 2:nrow(dim_journal.df) ) {
 }
 head(fact_table.df)
 ```
-### Summarize data of authors for fact table
+
+## Summarize data of authors for fact table
 
 ```{r}
 # loop through each author, except the first "ALL"
@@ -2222,8 +2016,7 @@ for ( i in 2:nrow(dim_author.df) ) {
   # loop through each quarter, incl the "ALL" quarter to get yearly totals
   for ( j in 1:nrow(dim_quarter.df) ) {
     
-    # loop through each year, except the first "ALL"
-    # TODO: Updated the functions and this to do all...okay?
+    # loop through each year
     for ( k in 1:nrow(dim_year.df) ) {
       
       # add in primary key
@@ -2262,45 +2055,14 @@ for ( i in 2:nrow(dim_author.df) ) {
 }
 head(fact_table.df)
 ```
-### Upload the data
+
+## Upload the data
 
 ```{r}
 dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
 ```
 
-## Test query on fact table to see how many articles author_id published overall
-
-```{sql connection=dbcon}
-SELECT DA.dim_author_last_name, DA.dim_author_fore_name, SFT.num_articles_published, SFT.num_articles_with_revisions
-FROM Summary_Fact_Table AS SFT
-JOIN DIM_Author AS DA
-ON SFT.author_id = DA.dim_author_key
-WHERE SFT.author_id = 3 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
-```
-
-## Test query on fact table to see how many articles were published in a journal at any point
-
-```{sql connection=dbcon}
-SELECT DJ.dim_journal_name, SFT.num_articles_published, SFT.num_articles_with_revisions, SFT.avg_days_to_submission
-FROM Summary_Fact_Table AS SFT
-JOIN DIM_Journal AS DJ
-ON SFT.journal_id = DJ.dim_journal_key
-WHERE SFT.journal_id = 4 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
-```
-
-## Test query to see if there is a relation between country and days_to_submission
-
-```{sql connection=dbcon}
-SELECT DJ.dim_journal_country, AVG(SFT.avg_days_to_submission)
-FROM Summary_Fact_Table AS SFT
-JOIN DIM_Journal AS DJ
-ON SFT.journal_id = DJ.dim_journal_key
-WHERE SFT.dim_year = 1 AND SFT.dim_quarter = 0 AND SFT.author_id = 0 AND SFT.avg_days_to_submission <> 0
-GROUP BY DJ.dim_journal_country
-ORDER BY DJ.dim_journal_country;
-```
-
-# Explore and Mine Data
+# Explore and Mine Data (Part 3)
 
 ```{r}
 # getting the size of the article count
@@ -2392,6 +2154,8 @@ getHistoryDate <- function(article_id, history_event) {
 }
 ```
 
+## TODO: Delete? I think this is just test code?
+
 ```{r}
 # testing the functions together to get the date difference in weeks
 received_date <- getHistoryDate(1, "received")
@@ -2407,7 +2171,7 @@ pub_information <- data.frame(art_id = character(),
                               date_diff = integer(),
                               weeks_dff = integer(),
                               stringsAsFactors = FALSE)
-
+row_count <- 1
 # iterating over the entire list
 for ( i in 1:size ){
   pub_date <- getPublicationDate(i)
@@ -2425,8 +2189,12 @@ for ( i in 1:size ){
   }
   
   # putting the data into the data frame
-  pub_information[i,] <- data.frame(i, pub_date, received_date, 
+  ## TODO: Okay with only adding articles that have a difference...otherwise it is likely missing and not zero
+  if ( days_difference > 0 ){
+    pub_information[row_count,] <- data.frame(i, pub_date, received_date, 
                                     days_difference, weeks_difference)
+    row_count <- row_count + 1
+    }
 }
 
 pub_information
@@ -2444,19 +2212,23 @@ article_barChart <- ggplot(
   data = pub_information, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = art_id)) + 
   labs(x = "Article ID", y = "Weeks to publish") + 
+  ggtitle("Days from Submission to Publication by Article") +
   geom_hline(yintercept = y_avg, color = "black") + 
   geom_text(aes(0, y_avg,label = avg_string, vjust = -1, hjust = -8)) +
   guides(fill = FALSE) 
 
 print(article_barChart)
 ```
+## Days to Submission by Journal
+## TODO: I add in the avg_days_to_submssion <> 0 because it wasn't in all records
 
 ```{r}
 journal_information <- dbGetQuery(dbcon, 'SELECT journal_id, avg_days_to_submission 
                        FROM Summary_Fact_Table
                        WHERE author_id = 0 
                        AND dim_year = 0 
-                       AND dim_quarter = 0')
+                       AND dim_quarter = 0
+                       AND avg_days_to_submission <> 0')
 ```
 
 ```{r}
@@ -2471,6 +2243,7 @@ journal_barChart <- ggplot(
   data = journal_information, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = journal_id)) + 
   labs(x = "Journal ID", y = "Days to submission") + 
+  ggtitle("Days from Submission to Publication by Journal") +
   geom_hline(yintercept = y_avg, color = "black") + 
   geom_text(aes(0, y_avg,label = avg_string, vjust = -1, hjust = -8)) +
   guides(fill = FALSE) 
@@ -2478,7 +2251,7 @@ journal_barChart <- ggplot(
 print(journal_barChart)
 ```
 
-### Submissions by quarter
+## Number of Submissions by Quarter
 
 ```{r}
 submission_by_quarter <- dbGetQuery(dbcon, "SELECT dim_quarter, 
@@ -2502,6 +2275,7 @@ articles_by_quarter <- ggplot(
   data = submission_by_quarter, aes(x = x_axis, y = y_axis)) + 
   geom_line(color="blue") + 
   labs(x = "Quarter", y = "Num Articles Published") + 
+  ggtitle("Submission by Quarter for All Journals") +
   guides(fill = FALSE) 
 
 print(articles_by_quarter)
