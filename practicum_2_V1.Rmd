@@ -224,6 +224,7 @@ SELECT * FROM Journal_Issue;
 ```
 
 
+
 # Helper Functions
 
 ## Row Exists
@@ -400,7 +401,6 @@ parseArticleInfo <- function(issue_id, article_node){
 }
 ```
 
-
 ## Create Data Frames
 
 ```{r}
@@ -452,6 +452,8 @@ journal.df <- data.frame(j_id = integer(),
                          journal_country = character(),
                          stringsAsFactors = FALSE)
 ```
+
+
 
 
 # Load Data
@@ -681,6 +683,7 @@ dbWriteTable(dbcon, "Journal_Issue", journal_issue.df, row.names = FALSE, append
 SET FOREIGN_KEY_CHECKS = 1;
 ```
 
+
 ## Queries to see if data is correct
 
 ```{sql connection=dbcon}
@@ -815,9 +818,177 @@ WHERE Article.art_id = 3;
 
 # Create Star/Snowflake Schema
 
+## Set up dimensions
+
+```{r}
+# Create the data frames
+dim_year.df <- data.frame(dim_year_key = integer(),
+                          dim_year_description = character(),
+                          stringsAsFactors = FALSE)
+
+# Extract all possible years from the publication information
+publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year 
+                                        AS year 
+                                        FROM Journal_Issue")
+publication_years <- publication_years[,1]
+
+# Define the ALL
+dim_year.df[1,] <- data.frame(0, "ALL")
+
+# Load the data frame
+for ( i in 1:length(publication_years) ) {
+  row_number <- nrow(dim_year.df) + 1
+  dim_year.df[row_number,] <- data.frame(i, publication_years[i]) 
+}
+
+```
+
+```{r}
+# Create the data frame
+dim_quarter.df <- data.frame(dim_quarter_key = integer(),
+                             dim_quarter_description = character(),
+                             stringsAsFactors = FALSE)
+
+# Define all possible quarters
+quarters_list = c("ALL", "Q1", "Q2", "Q3", "Q4")
+
+# Load the data frame
+for ( i in 1:length(quarters_list) ){
+  dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
+}
+```
+
+```{r}
+# Create the data frame
+dim_author.df <- data.frame(dim_author_key = integer(),
+                            dim_author_last_name = character(),
+                            dim_author_fore_name = character(),
+                            dim_author_initials = character(),
+                            stringsAsFactors = FALSE)
+
+# Define the ALL
+dim_author.df[1,] <- data.frame(0, "ALL", "ALL", "ALL")
+
+# Load the data frame
+author_info_from_db <- dbGetQuery(dbcon, "SELECT Author.aut_id AS dim_author_key, 
+                                          Author.author_last_name AS dim_author_last_name, 
+                                          Author.author_fore_name AS dim_author_fore_name, 
+                                          Author.author_initials AS dim_author_initials
+                                          FROM Author")
+
+dim_author.df <- rbind(dim_author.df, author_info_from_db)
+
+
+```
+
+```{r}
+# Create the data frame
+dim_journal.df <- data.frame(dim_journal_key = integer(),
+                             dim_journal_name = integer(),
+                             dim_journal_country = integer(),
+                             stringsAsFactors = FALSE)
+
+# Define the ALL
+dim_journal.df[1,] <- data.frame(0, "ALL", "ALL")
+
+# Load the data frame
+journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key, 
+                                           journal_name AS dim_journal_name,
+                                           journal_country AS dim_journal_country
+                                           FROM Journal;")
+
+dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
+```
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS DIM_Year;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE DIM_Year (
+  dim_year_key INT PRIMARY KEY,
+  dim_year_description VARCHAR(255) NOT NULL,
+  
+  INDEX (dim_year_key),
+  INDEX (dim_year_description)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM DIM_Year;
+```
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS DIM_Quarter;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE DIM_Quarter (
+  dim_quarter_key INT PRIMARY KEY,
+  dim_quarter_description VARCHAR(255) NOT NULL,
+  
+  INDEX (dim_quarter_key),
+  INDEX (dim_quarter_description)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM DIM_Quarter;
+```
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS DIM_Author;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE DIM_Author (
+  dim_author_key INT PRIMARY KEY,
+  dim_author_last_name VARCHAR(255) NOT NULL,
+  dim_author_fore_name VARCHAR(255) NOT NULL,
+  dim_author_initials VARCHAR(255) NOT NULL,
+  
+  INDEX (dim_author_key),
+  INDEX (dim_author_last_name),
+  INDEX (dim_author_fore_name),
+  INDEX (dim_author_initials)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM DIM_Author;
+```
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS DIM_Journal;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE DIM_Journal (
+  dim_journal_key INT PRIMARY KEY,
+  dim_journal_name VARCHAR(255) NOT NULL,
+  dim_journal_country VARCHAR(255) NOT NULL,
+  
+  INDEX (dim_journal_key),
+  INDEX (dim_journal_name),
+  INDEX (dim_journal_country)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM DIM_Journal;
+```
+
+```{r}
+# we can run this when you think the table is OK
+dbWriteTable(dbcon, "DIM_Year", dim_year.df, row.names = FALSE, append = TRUE)
+dbWriteTable(dbcon, "DIM_Quarter", dim_quarter.df, row.names = FALSE, append = TRUE)
+dbWriteTable(dbcon, "DIM_Author", dim_author.df, row.names = FALSE, append = TRUE)
+dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = TRUE)
+```
+
 ## Fact Table - Data Dump 
 
-![](Practicum2 - Star Schema.png "Practicum2 - Star Schema") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-1248%2C-504%2C6656%2C3144%2CgMo3rIrSBrSc&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+![](Practicum2 - Star Schema.png "Practicum 2 - FTD") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-4369%2C-3185%2C9062%2C7500%2CqFE4j-VncB.u&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
 
 ```{sql connection=dbcon}
 DROP TABLE IF EXISTS Fact_Table_Dump;
@@ -842,7 +1013,10 @@ CREATE TABLE Fact_Table_Dump (
   pub_status VARCHAR(255) NOT NULL,
   pub_year INT NOT NULL,
   pub_month INT NOT NULL,
-  pub_day INT NOT NULL
+  pub_day INT NOT NULL,
+  
+  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key)
+
 );
 ```
 
@@ -882,9 +1056,9 @@ factTableDump.df <- dbGetQuery(dbcon, 'SELECT ART.art_id as article_id
 dbWriteTable(dbcon, "Fact_Table_Dump", factTableDump.df, row.names = FALSE, append = TRUE)
 ```
 
-
-
-
+```{sql connection=dbcon}
+SELECT * FROM Fact_Table_Dump;
+```
 
 ## Summarized Fact Table
 
@@ -1066,7 +1240,6 @@ numArticlesRevisedByJournalandAuthor <- function(journal_id, year, quarter, auth
   return(as.numeric(count))
 }
 ```
-
 
 ```{r}
 # Function to find num of articles published by journal
@@ -1335,8 +1508,6 @@ numArticlesRevisedByJournal <- function(journal_id, year, quarter) {
   return(as.numeric(count))
 }
 ```
-
-
 
 ```{r}
 # Function to find num of articles published by author
@@ -1932,89 +2103,45 @@ avgDaysToPub <- function(article_list) {
 }
 ```
 
-### Set up dimensions for summary table
-
-```{r}
-# Create the data frames
-dim_year.df <- data.frame(dim_year_key = integer(),
-                          dim_year_description = character(),
-                          stringsAsFactors = FALSE)
-
-# Extract all possible years from the publication information
-publication_years <- dbGetQuery(dbcon, "SELECT DISTINCT publication_year 
-                                        AS year 
-                                        FROM Journal_Issue")
-publication_years <- publication_years[,1]
-
-# Define the ALL
-dim_year.df[1,] <- data.frame(0, "ALL")
-
-# Load the data frame
-for ( i in 1:length(publication_years) ) {
-  row_number <- nrow(dim_year.df) + 1
-  dim_year.df[row_number,] <- data.frame(i, publication_years[i]) 
-}
-
-```
-
-```{r}
-# Create the data frame
-dim_quarter.df <- data.frame(dim_quarter_key = integer(),
-                             dim_quarter_description = character(),
-                             stringsAsFactors = FALSE)
-
-# Define all possible quarters
-quarters_list = c("ALL", "Q1", "Q2", "Q3", "Q4")
-
-# Load the data frame
-for ( i in 1:length(quarters_list) ){
-  dim_quarter.df[i,] <- data.frame(i-1, quarters_list[i])
-}
-```
-
-```{r}
-# Create the data frame
-dim_author.df <- data.frame(dim_author_key = integer(),
-                            dim_author_last_name = character(),
-                            dim_author_fore_name = character(),
-                            dim_author_initials = character(),
-                            stringsAsFactors = FALSE)
-
-# Define the ALL
-dim_author.df[1,] <- data.frame(0, "ALL", "ALL", "ALL")
-
-# Load the data frame
-author_info_from_db <- dbGetQuery(dbcon, "SELECT Author.aut_id AS dim_author_key, 
-                                          Author.author_last_name AS dim_author_last_name, 
-                                          Author.author_fore_name AS dim_author_fore_name, 
-                                          Author.author_initials AS dim_author_initials
-                                          FROM Author")
-
-dim_author.df <- rbind(dim_author.df, author_info_from_db)
-
-
-```
-
-```{r}
-# Create the data frame
-dim_journal.df <- data.frame(dim_journal_key = integer(),
-                             dim_journal_name = integer(),
-                             dim_journal_country = integer(),
-                             stringsAsFactors = FALSE)
-
-# Define the ALL
-dim_journal.df[1,] <- data.frame(0, "ALL", "ALL")
-
-# Load the data frame
-journal_info_from_db <- dbGetQuery(dbcon, "SELECT j_id AS dim_journal_key, 
-                                           journal_name AS dim_journal_name,
-                                           journal_country AS dim_journal_country
-                                           FROM Journal;")
-
-dim_journal.df <- rbind(dim_journal.df, journal_info_from_db)
-```
-
 ### Summary table 
+
+![](Practicum2 - Star Schema.png "Practicum 2 - Summary Fact Table") <https://lucid.app/lucidchart/5a835436-ec1a-461a-94d4-bd4d46ece96f/edit?viewport_loc=-4369%2C-3185%2C9062%2C7500%2CqFE4j-VncB.u&invitationId=inv_2685f3e2-beaf-4ddd-808d-a2ccd6c89094>
+
+```{sql connection=dbcon}
+DROP TABLE IF EXISTS Summary_Fact_Table;
+```
+
+```{sql connection=dbcon}
+CREATE TABLE Summary_Fact_Table (
+  fact_id INT PRIMARY KEY AUTO_INCREMENT,
+  journal_id INT NOT NULL,
+  author_id INT NOT NULL,
+  dim_year INT NOT NULL,
+  dim_quarter INT NOT NULL,
+  num_articles_published INT NOT NULL,
+  avg_days_to_submission INT NOT NULL,
+  num_articles_with_revisions INT NOT NULL,
+  
+  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key),
+  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key),
+  CONSTRAINT year_dim_id_fk FOREIGN KEY (dim_year) REFERENCES DIM_Year(dim_year_key),
+  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key),
+  
+  INDEX (journal_id),
+  INDEX (author_id),
+  INDEX (dim_year),
+  INDEX (dim_quarter),
+  INDEX (num_articles_published),
+  INDEX (avg_days_to_submission),
+  INDEX (num_articles_with_revisions)
+);
+```
+
+```{sql connection=dbcon}
+SELECT * FROM Summary_Fact_Table;
+```
+
+## Populate the data for the summary table
 
 ```{r}
 # Create the summary data frame
@@ -2030,8 +2157,6 @@ fact_table.df <- data.frame(fact_id = integer(),
 
 fact_table.df
 ```
-
-## Populate the data for the summary table
 
 ```{r}
 # loop through each journal, except the first "ALL"
@@ -2128,129 +2253,13 @@ for ( i in 2:nrow(dim_author.df) ) {
 }
 head(fact_table.df)
 ```
-## Create Statements for Fact and Dimension Tables
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS DIM_Year;
-```
 
-```{sql connection=dbcon}
-CREATE TABLE DIM_Year (
-  dim_year_key INT PRIMARY KEY,
-  dim_year_description VARCHAR(200) NOT NULL,
-  
-  INDEX (dim_year_key),
-  INDEX (dim_year_description)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM DIM_Year;
-```
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS DIM_Quarter;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE DIM_Quarter (
-  dim_quarter_key INT PRIMARY KEY,
-  dim_quarter_description VARCHAR(200) NOT NULL,
-  
-  INDEX (dim_quarter_key),
-  INDEX (dim_quarter_description)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM DIM_Quarter;
-```
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS DIM_Author;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE DIM_Author (
-  dim_author_key INT PRIMARY KEY,
-  dim_author_last_name VARCHAR(200) NOT NULL,
-  dim_author_fore_name VARCHAR(200) NOT NULL,
-  dim_author_initials VARCHAR(200) NOT NULL,
-  
-  INDEX (dim_author_key),
-  INDEX (dim_author_last_name),
-  INDEX (dim_author_fore_name),
-  INDEX (dim_author_initials)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM DIM_Author;
-```
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS DIM_Journal;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE DIM_Journal (
-  dim_journal_key INT PRIMARY KEY,
-  dim_journal_name VARCHAR(200) NOT NULL,
-  dim_journal_country VARCHAR(200) NOT NULL,
-  
-  INDEX (dim_journal_key),
-  INDEX (dim_journal_name),
-  INDEX (dim_journal_country)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM DIM_Journal;
-```
-
-```{sql connection=dbcon}
-DROP TABLE IF EXISTS Summary_Fact_Table;
-```
-
-```{sql connection=dbcon}
-CREATE TABLE Summary_Fact_Table (
-  fact_id INT PRIMARY KEY AUTO_INCREMENT,
-  journal_id INT NOT NULL,
-  author_id INT NOT NULL,
-  dim_year INT NOT NULL,
-  dim_quarter INT NOT NULL,
-  num_articles_published INT NOT NULL,
-  avg_days_to_submission INT NOT NULL,
-  num_articles_with_revisions INT NOT NULL,
-  
-  CONSTRAINT journal_dim_id_fk FOREIGN KEY (journal_id) REFERENCES DIM_Journal(dim_journal_key),
-  CONSTRAINT author_dim_id_fk FOREIGN KEY (author_id) REFERENCES DIM_Author(dim_author_key),
-  CONSTRAINT year_dim_id_fk FOREIGN KEY (dim_year) REFERENCES DIM_Year(dim_year_key),
-  CONSTRAINT qurter_dim_id_fk FOREIGN KEY (dim_quarter) REFERENCES DIM_Quarter(dim_quarter_key),
-  
-  INDEX (journal_id),
-  INDEX (author_id),
-  INDEX (dim_year),
-  INDEX (dim_quarter),
-  INDEX (num_articles_published),
-  INDEX (avg_days_to_submission),
-  INDEX (num_articles_with_revisions)
-);
-```
-
-```{sql connection=dbcon}
-SELECT * FROM Summary_Fact_Table;
-```
-# Load the fact and dimension tables
 ```{r}
-# we can run this when you think the table is OK
-dbWriteTable(dbcon, "DIM_Year", dim_year.df, row.names = FALSE, append = TRUE)
-dbWriteTable(dbcon, "DIM_Quarter", dim_quarter.df, row.names = FALSE, append = TRUE)
-dbWriteTable(dbcon, "DIM_Author", dim_author.df, row.names = FALSE, append = TRUE)
-dbWriteTable(dbcon, "DIM_Journal", dim_journal.df, row.names = FALSE, append = TRUE)
 dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
 ```
 
 ## Test query on fact table to see how many articles author_id published overall
+
 ```{sql connection=dbcon}
 SELECT DA.dim_author_last_name, DA.dim_author_fore_name, SFT.num_articles_published, SFT.num_articles_with_revisions
 FROM Summary_Fact_Table AS SFT
@@ -2260,6 +2269,7 @@ WHERE SFT.author_id = 3 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
 ```
 
 ## Test query on fact table to see how many articles were published in a journal at any point
+
 ```{sql connection=dbcon}
 SELECT DJ.dim_journal_name, SFT.num_articles_published, SFT.num_articles_with_revisions, SFT.avg_days_to_submission
 FROM Summary_Fact_Table AS SFT
@@ -2268,7 +2278,9 @@ ON SFT.journal_id = DJ.dim_journal_key
 WHERE SFT.journal_id = 4 AND SFT.dim_year = 0 AND SFT.dim_quarter = 0;
 ```
 
+
 ## Test query to see if there is a relation between country and days_to_submission
+
 ```{sql connection=dbcon}
 SELECT DJ.dim_journal_country, AVG(SFT.avg_days_to_submission)
 FROM Summary_Fact_Table AS SFT
@@ -2291,29 +2303,28 @@ size <- dbGetQuery(dbcon, 'SELECT COUNT(art_id) AS art_count
 size <- size$art_count
 ```
 
+
 ## Trends in seasonality
 
 ```{r}
-seasonal_info <- dbGetQuery(dbcon, 'SELECT COUNT(ART.art_id) as article_count
+seasonal_info <- dbGetQuery(dbcon, 'SELECT COUNT(DISTINCT(article_id)) as article_count
                                     , CASE 
-                                      WHEN (JI.publication_month >= 0 
-                                      AND JI.publication_month <= 3)
-                                        THEN CONCAT(JI.publication_year, "-", 1)
-                                      WHEN (JI.publication_month >= 4 
-                                      AND JI.publication_month <= 6) 
-                                        THEN CONCAT(JI.publication_year, "-", 2)
-                                      WHEN (JI.publication_month >= 7 
-                                      AND JI.publication_month <= 9) 
-                                        THEN CONCAT(JI.publication_year, "-", 3)
-                                      WHEN (JI.publication_month >= 10 
-                                      AND JI.publication_month <= 12) 
-                                        THEN CONCAT(JI.publication_year, "-", 4)
+                                      WHEN (ji_pub_month >= 0 
+                                      AND ji_pub_month <= 3)
+                                        THEN CONCAT(ji_pub_year, "-", 1)
+                                      WHEN (ji_pub_month >= 4 
+                                      AND ji_pub_month <= 6) 
+                                        THEN CONCAT(ji_pub_year, "-", 2)
+                                      WHEN (ji_pub_month >= 7 
+                                      AND ji_pub_month <= 9) 
+                                        THEN CONCAT(ji_pub_year, "-", 3)
+                                      WHEN (ji_pub_month >= 10 
+                                      AND ji_pub_month <= 12) 
+                                        THEN CONCAT(ji_pub_year, "-", 4)
                                     END AS year_quarter
-                                    FROM Article AS ART
-                                    JOIN Journal_Issue AS JI
-                                    ON ART.journal_issue_id = JI.issue_id
-                                    GROUP BY JI.publication_year, year_quarter
-                                    ORDER BY JI.publication_year, year_quarter')
+                                    FROM Fact_Table_Dump
+                                    GROUP BY ji_pub_year, year_quarter
+                                    ORDER BY ji_pub_year, year_quarter')
 
 seasonal_info
   
@@ -2327,7 +2338,7 @@ x_axis <- seasonal_info$year_quarter
 y_axis <- seasonal_info$article_count
 
 # adorning the bar chart
-barChart <- ggplot(
+lineChart <- ggplot(
   data = seasonal_info, aes(x = x_axis, y = y_axis)) + 
   geom_bar(stat = "identity", aes(fill = year_quarter)) + 
   labs(x = "Quarter", y = "Num of Articles") + 
@@ -2335,6 +2346,7 @@ barChart <- ggplot(
 
 print(barChart)
 ```
+
 ## Trends in duration until publication
 
 ```{r}
