@@ -2161,10 +2161,6 @@ numArticlesRevisedByYearQuarter <- function(year, quarter) {
 }
 ```
 
-```{sql connection=dbcon}
-SELECT article_title FROM Article;
-```
-
 ### articleIDsPublishedByYearQuarter
 Function to return a list of article IDs associated with each journal
 
@@ -2474,6 +2470,14 @@ head(fact_table.df)
 ```{r}
 dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, append = TRUE)
 ```
+
+## Confirm that fact table upload was succesfull
+```{sql connection=dbcon}
+SELECT *
+FROM Summary_Fact_Table
+LIMIT 15
+```
+
 
 # Explore and Mine Data (Part 3)
 
