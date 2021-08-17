@@ -55,11 +55,6 @@ killDbConnections <- function () {
 #killDbConnections()
 ```
 
-```{r}
-# View tables in the database
-dbListTables(dbcon)
-```
-
 ```{sql connection=dbcon}
 -- Turns off foreign key check
 SET FOREIGN_KEY_CHECKS = 0;
@@ -126,7 +121,9 @@ CREATE TABLE Article (
   art_id INT PRIMARY KEY AUTO_INCREMENT,
   article_title VARCHAR(255) NOT NULL,
   journal_issue_id INT NOT NULL,
-  pub_model ENUM('Print', 'Print-Electronic', 'Electronic', 'Electronic-Print', 'Electronic-eCollection') NOT NULL
+  pub_model ENUM('Print', 'Print-Electronic', 'Electronic', 'Electronic-Print', 'Electronic-eCollection') NOT NULL,
+  
+  CONSTRAINT article_journal_issue_fk FOREIGN KEY (journal_issue_ID) REFERENCES Journal_Issue(issue_id)
 );
 ```
 
@@ -979,6 +976,7 @@ SELECT * FROM Summary_Fact_Table;
 ## Functions to summarize the data
 
 ### getPublicationDate
+
 Function to return publication date of an article as a date object
 
 ```{r}
@@ -1004,6 +1002,7 @@ getPublicationDate <- function(article_id) {
 ```
 
 ### getHistoryDate
+
 Function to retrieve date of history event of an article.
 
 ```{r}
@@ -1030,6 +1029,7 @@ getHistoryDate <- function(article_id, history_event) {
 ```
 
 ### daysToPub
+
 Function to get the number of days to publish for an article.
 
 ```{r}
@@ -1054,6 +1054,7 @@ daysToPub <- function(article_id) {
 ```
 
 ### numArticlesPublishedByJournal
+
 Function to find num of articles published by journal.
 
 ```{r}
@@ -1175,6 +1176,7 @@ numArticlesPublishedByJournal <- function(journal_id, year, quarter) {
 ```
 
 ### numArticlesRevisedByJournal
+
 Function to get num of articles with revisions based on journal.
 
 ```{r}
@@ -1328,10 +1330,8 @@ numArticlesRevisedByJournal <- function(journal_id, year, quarter) {
 ```
 
 ### numArticlesPublishedByAuthor
+
 Function to find num of articles published by author.
-
-
-
 
 ```{r}
 # Function to find num of articles published by author
@@ -1472,8 +1472,8 @@ numArticlesPublishedByAuthor <- function(author_id, year, quarter) {
 ```
 
 ### numArticlesRevisedByAuthor
-Function to get num of articles with revisions based on author.
 
+Function to get num of articles with revisions based on author.
 
 ```{r}
 # Function to get num of articles with revisions based on author
@@ -1645,6 +1645,7 @@ numArticlesRevisedByAuthor <- function(author_id, year, quarter) {
 ```
 
 ### articleIDsPublishedByJournal
+
 Function to return a list of article IDs associated with each journal
 
 ```{r}
@@ -1770,6 +1771,7 @@ articleIDsPublishedByJournal <- function(journal_id, year, quarter) {
 ```
 
 ### articleIDsPublishedByAuthor
+
 Function to return a list of article IDs associated with each author.
 
 ```{r}
@@ -1912,6 +1914,7 @@ articleIDsPublishedByAuthor <- function(author_id, year, quarter) {
 ```
 
 ### numArticlesPublishedByYearQuarter
+
 Function to find num of articles published by journal.
 
 ```{r}
@@ -2019,6 +2022,7 @@ numArticlesPublishedByYearQuarter <- function(year, quarter) {
 ```
 
 ### numArticlesRevisedByYearQuarter
+
 Function to get num of articles with revisions based on journal.
 
 ```{r}
@@ -2162,6 +2166,7 @@ numArticlesRevisedByYearQuarter <- function(year, quarter) {
 ```
 
 ### articleIDsPublishedByYearQuarter
+
 Function to return a list of article IDs associated with each journal
 
 ```{r}
@@ -2273,6 +2278,7 @@ articleIDsPublishedByYearQuarter <- function(year, quarter) {
 ```
 
 ### avgDaysToPub
+
 Function that takes in a list of article_ids and returns the average days to pub for that list of articles.
 
 ```{r}
@@ -2414,7 +2420,6 @@ for ( i in 2:nrow(dim_journal.df) ) {
 head(fact_table.df)
 ```
 
-
 ## Summarize data of authors for fact table
 
 ```{r}
@@ -2472,12 +2477,12 @@ dbWriteTable(dbcon, "Summary_Fact_Table", fact_table.df, row.names = FALSE, appe
 ```
 
 ## Confirm that fact table upload was succesfull
+
 ```{sql connection=dbcon}
 SELECT *
 FROM Summary_Fact_Table
 LIMIT 15
 ```
-
 
 # Explore and Mine Data (Part 3)
 
@@ -2489,6 +2494,7 @@ size <- size$art_count
 ```
 
 ## Trends in seasonality
+
 ### This is then calculated using our fact table further down in the document
 
 ```{r}
@@ -2635,9 +2641,11 @@ article_barChart <- ggplot(
 
 print(article_barChart)
 ```
+
 ## Days to Submission by Journal
 
 ```{r}
+# Use fact table to extract info
 journal_information <- dbGetQuery(dbcon, 'SELECT journal_id, avg_days_to_submission 
                        FROM Summary_Fact_Table
                        WHERE author_id = 0 
@@ -2669,6 +2677,7 @@ print(journal_barChart)
 ## Number of Submissions by Quarter
 
 ```{r}
+# Use fact table to extract info
 submission_by_quarter <- dbGetQuery(dbcon, "SELECT dim_quarter, 
                                                    num_articles_published
                                             FROM Summary_Fact_Table
@@ -2701,6 +2710,19 @@ print(articles_by_quarter)
 -- Turns on foreign key check
 SET FOREIGN_KEY_CHECKS = 1;
 ```
+
+# Database Proof
+
+## Show Tables to Confirm Database Creation
+
+```{r}
+# View tables in the database
+dbListTables(dbcon)
+```
+
+## Reverse Engineered ERD using MySQL Workbench
+
+![](Reversed%20Engineered%20Schema.png "Reverse Engineered Schema")
 
 ```{r}
 dbDisconnect(dbcon)
