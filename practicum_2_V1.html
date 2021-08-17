@@ -2649,52 +2649,6 @@ numArticlesRevisedByYearQuarter &lt;- function(year, quarter) {
   count &lt;- dbGetQuery(dbcon, sqlStatement)
   return(as.numeric(count))
 }</code></pre>
-<pre class="sql"><code>SELECT article_title FROM Article;</code></pre>
-<div class="knitsql-table">
-<table>
-<caption>Displaying records 1 - 10</caption>
-<colgroup>
-<col width="100%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th align="left">article_title</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">Regional anesthesia for children undergoing orthopedic ambulatory surgeries in the United States, 1996-2006.</td>
-</tr>
-<tr class="even">
-<td align="left">Demographics and perioperative outcome in patients with depression and anxiety undergoing total joint arthroplasty: a population-based study.</td>
-</tr>
-<tr class="odd">
-<td align="left">Cerebrovascular reserve and stroke risk in patients with carotid stenosis or occlusion: a systematic review and meta-analysis.</td>
-</tr>
-<tr class="even">
-<td align="left">Comparative perioperative outcomes associated with neuraxial versus general anesthesia for simultaneous bilateral total knee arthroplasty.</td>
-</tr>
-<tr class="odd">
-<td align="left">Vagus nerve stimulation vs. corpus callosotomy in the treatment of Lennox-Gastaut syndrome: a meta-analysis.</td>
-</tr>
-<tr class="even">
-<td align="left">Have bilateral total knee arthroplasties become safer? A population-based trend analysis.</td>
-</tr>
-<tr class="odd">
-<td align="left">The metabolic syndrome in patients undergoing knee and hip arthroplasty: trends and in-hospital outcomes in the United States.</td>
-</tr>
-<tr class="even">
-<td align="left">Utilization of critical care services among patients undergoing total hip and knee arthroplasty: epidemiology and risk factors.</td>
-</tr>
-<tr class="odd">
-<td align="left">Visualization of the normal appendix with MR enterography in children.</td>
-</tr>
-<tr class="even">
-<td align="left">FDG-PET assessment of rectal cancer response to neoadjuvant chemoradiotherapy is not associated with long-term prognosis: a prospective evaluation.</td>
-</tr>
-</tbody>
-</table>
-</div>
 </div>
 <div id="articleidspublishedbyyearquarter" class="section level3">
 <h3>articleIDsPublishedByYearQuarter</h3>
@@ -3039,6 +2993,141 @@ head(fact_table.df)</code></pre>
 <h2>Upload the data</h2>
 <pre class="r"><code>dbWriteTable(dbcon, &quot;Summary_Fact_Table&quot;, fact_table.df, row.names = FALSE, append = TRUE)</code></pre>
 <pre><code>## [1] TRUE</code></pre>
+</div>
+<div id="confirm-that-fact-table-upload-was-succesfull" class="section level2">
+<h2>Confirm that fact table upload was succesfull</h2>
+<pre class="sql"><code>SELECT *
+FROM Summary_Fact_Table
+LIMIT 15</code></pre>
+<div class="knitsql-table">
+<table>
+<caption>Displaying records 1 - 10</caption>
+<colgroup>
+<col width="6%" />
+<col width="8%" />
+<col width="8%" />
+<col width="7%" />
+<col width="9%" />
+<col width="18%" />
+<col width="18%" />
+<col width="22%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">fact_id</th>
+<th align="right">journal_id</th>
+<th align="right">author_id</th>
+<th align="right">dim_year</th>
+<th align="right">dim_quarter</th>
+<th align="right">num_articles_published</th>
+<th align="right">avg_days_to_submission</th>
+<th align="right">num_articles_with_revisions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">1</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">19</td>
+<td align="right">0</td>
+<td align="right">5</td>
+</tr>
+<tr class="even">
+<td align="left">2</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">0</td>
+<td align="right">16</td>
+<td align="right">0</td>
+<td align="right">3</td>
+</tr>
+<tr class="odd">
+<td align="left">3</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td align="right">3</td>
+<td align="right">108</td>
+<td align="right">2</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">8</td>
+<td align="right">0</td>
+<td align="right">3</td>
+</tr>
+<tr class="odd">
+<td align="left">5</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">5</td>
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="left">6</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td align="right">1</td>
+<td align="right">3</td>
+<td align="right">108</td>
+<td align="right">2</td>
+</tr>
+<tr class="odd">
+<td align="left">7</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td align="right">4</td>
+<td align="right">85</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="left">8</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1</td>
+<td align="right">2</td>
+<td align="right">4</td>
+<td align="right">85</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="left">9</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2</td>
+<td align="right">2</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+<tr class="even">
+<td align="left">10</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">3</td>
+<td align="right">4</td>
+<td align="right">0</td>
+<td align="right">1</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </div>
 <div id="explore-and-mine-data-part-3" class="section level1">
