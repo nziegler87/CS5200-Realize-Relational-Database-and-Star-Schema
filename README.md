@@ -1,5 +1,4 @@
 # Practicum 2
-## Overview
 - **Step 1:** Design, Implement, and Load a Relational Database using data in XML File
 - **Step 2:** Design, Implement, and Load a Star Schema of the Data with Fact Tables
 
